@@ -1,35 +1,49 @@
-local json = require('openmw.util').loadJson
+-- Сетевая интеграция с HTTP мостом
+local core = require('openmw.core')
 
 local M = {}
-local isConnected = false
+local HTTP_BASE = "http://127.0.0.1:8080"
 
-function M.init()
-    print("[Morrowind AI] HTTP мост готов")
-    isConnected = true
+function M.sendDialogueRequest(npcName, playerMessage)
+    print("[AI Network] 📤 Отправка диалога: " .. npcName .. " <- " .. playerMessage)
+    
+    -- В OpenMW 0.49 прямые HTTP запросы ограничены, используем события
+    core.sendGlobalEvent("http_request", {
+        url = HTTP_BASE .. "/dialogue",
+        method = "POST",
+        data = {
+            npc_name = npcName,
+            player_message = playerMessage
+        }
+    })
+    
+    return "Запрос отправлен к ИИ серверу..."
 end
 
-function M.sendDialogue(npcName, playerMessage)
-    if not isConnected then return nil end
+function M.sendVoiceRequest(voiceText)
+    print("[AI Network] 🎤 Отправка голоса: " .. voiceText)
     
-    print("[AI] Отправка диалога: " .. npcName .. " <- " .. playerMessage)
+    core.sendGlobalEvent("http_request", {
+        url = HTTP_BASE .. "/voice",
+        method = "POST", 
+        data = {
+            voice_text = voiceText
+        }
+    })
     
-    -- Здесь будет HTTP запрос к мосту
-    -- Пока возвращаем заглушку
-    return {
-        status = "success",
-        ai_response = "Приветствую! Ты сказал: '" .. playerMessage .. "'"
-    }
+    return "Голос обработан"
 end
 
-function M.sendVoice(voiceText)
-    if not isConnected then return nil end
+function M.testConnection()
+    print("[AI Network] 🔍 Тест соединения с HTTP мостом")
     
-    print("[AI] Голос: " .. voiceText)
-    return { status = "success", recognized_text = voiceText }
-end
-
-function M.update(dt)
-    -- Проверка соединения
+    core.sendGlobalEvent("http_request", {
+        url = HTTP_BASE .. "/test",
+        method = "GET",
+        data = {}
+    })
+    
+    return "Тест запрос отправлен"
 end
 
 return M
