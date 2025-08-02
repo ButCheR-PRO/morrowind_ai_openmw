@@ -1,27 +1,30 @@
 local core = require('openmw.core')
+local ui = require('openmw.ui')
 local world = require('openmw.world')
-local nearby = require('openmw.nearby')
 
 local network = require('scripts.morrowind_ai.network')
-local dialogue = require('scripts.morrowind_ai.dialogue')
 
 local M = {}
 
--- Инициализация мода
 function M.onInit()
-    print("[Morrowind AI] Инициализация...")
+    ui.showMessage("[AI] рџ¤– Morrowind AI РјРѕРґ Р·Р°РіСЂСѓР¶РµРЅ!")
+    ui.showMessage("[AI] рџ”— РџРѕРґРєР»СЋС‡РµРЅРёРµ Рє HTTP РјРѕСЃС‚Сѓ...")
+    
     network.init()
-    dialogue.init()
+    
+    ui.showMessage("[AI] вњ… Р“РѕС‚РѕРІ Рє РґРёР°Р»РѕРіР°Рј!")
 end
 
--- Обработка событий
 function M.onUpdate(dt)
     network.update(dt)
 end
 
--- Обработка диалогов
-function M.onDialogueStarted(actor)
-    dialogue.onDialogueStarted(actor)
+-- РўРµСЃС‚РѕРІР°СЏ С„СѓРЅРєС†РёСЏ РґР»СЏ РґРёР°Р»РѕРіРѕРІ
+function M.testDialogue()
+    local response = network.sendDialogue("РўРµСЃС‚РѕРІС‹Р№ РќРџРЎ", "РџСЂРёРІРµС‚!")
+    if response and response.ai_response then
+        ui.showMessage("[AI] " .. response.ai_response)
+    end
 end
 
 return M

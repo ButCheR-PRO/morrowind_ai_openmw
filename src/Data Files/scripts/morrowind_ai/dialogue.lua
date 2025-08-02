@@ -5,7 +5,7 @@ local network = require('scripts.morrowind_ai.network')
 local M = {}
 
 function M.init()
-    print("[Morrowind AI] Диалоговая система готова")
+    print("[Morrowind AI] Р”РёР°Р»РѕРіРѕРІР°СЏ СЃРёСЃС‚РµРјР° РіРѕС‚РѕРІР°")
 end
 
 function M.onDialogueStarted(actor)
@@ -18,39 +18,39 @@ function M.onDialogueStarted(actor)
         faction = actor.type and actor.type.faction or "none"
     }
     
-    -- Отправляем данные НПС на сервер
+    -- РћС‚РїСЂР°РІР»СЏРµРј РґР°РЅРЅС‹Рµ РќРџРЎ РЅР° СЃРµСЂРІРµСЂ
     network.sendToServer({
         type = "dialogue_started",
         npc = npcData,
-        player_name = "Неревар" -- Или получить из игры
+        player_name = "РќРµСЂРµРІР°СЂ" -- РР»Рё РїРѕР»СѓС‡РёС‚СЊ РёР· РёРіСЂС‹
     })
 end
 
 function M.processPlayerMessage(message)
-    -- Отправляем сообщение игрока на сервер для обработки ИИ
+    -- РћС‚РїСЂР°РІР»СЏРµРј СЃРѕРѕР±С‰РµРЅРёРµ РёРіСЂРѕРєР° РЅР° СЃРµСЂРІРµСЂ РґР»СЏ РѕР±СЂР°Р±РѕС‚РєРё РР
     network.sendToServer({
         type = "player_message", 
         message = message
     })
     
-    -- Ждём ответ от ИИ
+    -- Р–РґС‘Рј РѕС‚РІРµС‚ РѕС‚ РР
     local response = network.receiveFromServer()
     if response and response.ai_response then
-        -- Показываем ответ НПС в диалоге
+        -- РџРѕРєР°Р·С‹РІР°РµРј РѕС‚РІРµС‚ РќРџРЎ РІ РґРёР°Р»РѕРіРµ
         ui.showMessage(response.ai_response)
         
-        -- Если есть аудио файл - проигрываем его
+        -- Р•СЃР»Рё РµСЃС‚СЊ Р°СѓРґРёРѕ С„Р°Р№Р» - РїСЂРѕРёРіСЂС‹РІР°РµРј РµРіРѕ
         if response.audio_file then
-            -- Здесь нужно добавить воспроизведение аудио
+            -- Р—РґРµСЃСЊ РЅСѓР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ РІРѕСЃРїСЂРѕРёР·РІРµРґРµРЅРёРµ Р°СѓРґРёРѕ
             M.playNPCAudio(response.audio_file)
         end
     end
 end
 
 function M.playNPCAudio(audioFile)
-    -- OpenMW пока не поддерживает динамическое аудио
-    -- Это нужно будет реализовать через внешние средства
-    print("[Morrowind AI] Воспроизведение: " .. audioFile)
+    -- OpenMW РїРѕРєР° РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ РґРёРЅР°РјРёС‡РµСЃРєРѕРµ Р°СѓРґРёРѕ
+    -- Р­С‚Рѕ РЅСѓР¶РЅРѕ Р±СѓРґРµС‚ СЂРµР°Р»РёР·РѕРІР°С‚СЊ С‡РµСЂРµР· РІРЅРµС€РЅРёРµ СЃСЂРµРґСЃС‚РІР°
+    print("[Morrowind AI] Р’РѕСЃРїСЂРѕРёР·РІРµРґРµРЅРёРµ: " .. audioFile)
 end
 
 return M

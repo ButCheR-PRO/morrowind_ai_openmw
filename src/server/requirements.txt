@@ -22,3 +22,7 @@ openai
 google-generativeai
 anthropic
 mistralai
+
+# HTTP сервер для OpenMW моста
+aiohttp>=3.8.0
+aiofiles>=23.0.0

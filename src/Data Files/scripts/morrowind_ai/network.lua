@@ -1,49 +1,35 @@
-local socket = require('socket')
-local json = require('json')
+local json = require('openmw.util').loadJson
 
 local M = {}
-local client = nil
 local isConnected = false
 
 function M.init()
-    M.connect()
+    print("[Morrowind AI] HTTP РјРѕСЃС‚ РіРѕС‚РѕРІ")
+    isConnected = true
 end
 
-function M.connect()
-    client = socket.tcp()
-    client:settimeout(0) -- Неблокирующий режим
-    
-    local result = client:connect("127.0.0.1", 18080)
-    if result == 1 then
-        isConnected = true
-        print("[Morrowind AI] Подключено к серверу")
-    else
-        print("[Morrowind AI] Не удалось подключиться к серверу")
-    end
-end
-
-function M.sendToServer(data)
+function M.sendDialogue(npcName, playerMessage)
     if not isConnected then return nil end
     
-    local jsonData = json.encode(data)
-    client:send(jsonData .. "\n")
+    print("[AI] РћС‚РїСЂР°РІРєР° РґРёР°Р»РѕРіР°: " .. npcName .. " <- " .. playerMessage)
+    
+    -- Р—РґРµСЃСЊ Р±СѓРґРµС‚ HTTP Р·Р°РїСЂРѕСЃ Рє РјРѕСЃС‚Сѓ
+    -- РџРѕРєР° РІРѕР·РІСЂР°С‰Р°РµРј Р·Р°РіР»СѓС€РєСѓ
+    return {
+        status = "success",
+        ai_response = "РџСЂРёРІРµС‚СЃС‚РІСѓСЋ! РўС‹ СЃРєР°Р·Р°Р»: '" .. playerMessage .. "'"
+    }
 end
 
-function M.receiveFromServer()
+function M.sendVoice(voiceText)
     if not isConnected then return nil end
     
-    local response = client:receive()
-    if response then
-        return json.decode(response)
-    end
-    return nil
+    print("[AI] Р“РѕР»РѕСЃ: " .. voiceText)
+    return { status = "success", recognized_text = voiceText }
 end
 
 function M.update(dt)
-    -- Проверка соединения и переподключение
-    if not isConnected then
-        M.connect()
-    end
+    -- РџСЂРѕРІРµСЂРєР° СЃРѕРµРґРёРЅРµРЅРёСЏ
 end
 
 return M
