@@ -1,0 +1,24 @@
+# core
+colorlog
+pathvalidate
+pydantic
+pyyaml
+pynput
+pywin32
+
+# stt
+vosk
+sounddevice
+azure-cognitiveservices-speech
+openai-whisper
+numpy
+
+# tts
+mutagen
+elevenlabs
+
+# llm
+openai
+google-generativeai
+anthropic
+mistralai

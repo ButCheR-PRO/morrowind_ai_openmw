@@ -1,0 +1,2 @@
+PLAYER: scripts/morrowind_ai/player.lua
+GLOBAL: scripts/morrowind_ai/init.lua
