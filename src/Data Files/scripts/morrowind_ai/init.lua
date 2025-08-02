@@ -1,27 +1,19 @@
 local core = require('openmw.core')
-local async = require('openmw.async')
 
-local M = {}
-
+-- Заглушка HTTP запросов для OpenMW
 local function sendHttpRequest(url, data)
-    local success, result = pcall(function()
-        print("[AI] HTTP запрос к: " .. url)
-        print("[AI] Данные отправлены")
-        
-        -- В OpenMW 0.49 HTTP делается через внешние вызовы
-        return "Тестовый ответ от ИИ сервера"
-    end)
+    print("[AI] 📡 HTTP запрос к: " .. url)
+    print("[AI] 📤 Данные отправлены")
     
-    return success and result or "Ошибка HTTP запроса"
+    -- В OpenMW прямых HTTP запросов нет, но можно использовать внешние процессы
+    -- Пока используем заглушку
+    return "✅ Тестовый ответ от ИИ сервера"
 end
 
-function M.onInit()
+-- Инициализация глобального модуля
+local function onInit()
     print("[Morrowind AI] 🤖 ИИ мод загружен успешно!")
-    
-    -- Отправляем сообщение через UI Manager
-    core.sendGlobalEvent("ai_show_message", {
-        message = "[AI] 🔗 Подключение к HTTP серверу..."
-    })
+    print("[Morrowind AI] 🌐 Глобальный модуль инициализирован")
     
     -- Тестовый запрос к HTTP мосту
     local response = sendHttpRequest("http://127.0.0.1:8080/test", {
@@ -29,65 +21,90 @@ function M.onInit()
         timestamp = os.time()
     })
     
-    -- Отправляем результат через UI Manager
-    core.sendGlobalEvent("ai_connection_test", {
-        response = response
-    })
+    print("[AI] 📨 Ответ сервера: " .. response)
 end
 
-function M.onUpdate(dt)
-    -- Периодические проверки связи с сервером
-end
-
--- Глобальные события для других скриптов
-function M.onGlobalEvent(eventName, data)
+-- Обработка глобальных событий
+local function onGlobalEvent(eventName, data)
+    print("[AI] 📢 Получено событие: " .. eventName)
+    
     if eventName == "ai_dialogue_request" then
         local npcName = data.npc_name or "Unknown"
         local message = data.message or ""
         
         print("[AI] 🗣️ Диалог: " .. npcName .. " <- " .. message)
         
+        -- Отправляем запрос к HTTP мосту
         local response = sendHttpRequest("http://127.0.0.1:8080/dialogue", {
             npc_name = npcName,
-            player_message = message
+            player_message = message,
+            context = data.context or {}
         })
         
-        -- Отправляем ответ через UI Manager
+        -- Отправляем ответ обратно
         core.sendGlobalEvent("ai_dialogue_response", {
             npc_name = npcName,
-            ai_response = response
+            ai_response = response,
+            original_message = message
         })
         
     elseif eventName == "ai_voice_start" then
-        print("[AI] 🎤 Начало записи голоса")
+        print("[AI] 🎤 🔴 Начало записи голоса")
         
-        -- Отправляем событие UI Manager
-        core.sendGlobalEvent("ai_voice_start", {
-            timestamp = os.time()
+        -- HTTP запрос для начала записи голоса
+        local voiceResponse = sendHttpRequest("http://127.0.0.1:8080/voice", {
+            action = "start_recording",
+            timestamp = data.timestamp or os.time()
         })
         
-        -- Здесь можно добавить логику работы с внешним HTTP сервером для голоса
-        local voiceResponse = sendHttpRequest("http://127.0.0.1:8080/voice/start", {
-            action = "start_recording"
-        })
+        print("[AI] 🎤 Сервер ответ: " .. voiceResponse)
         
     elseif eventName == "ai_voice_stop" then
-        print("[AI] 🎤 Остановка записи голоса")
+        print("[AI] 🎤 ⚪ Остановка записи голоса")
         
-        core.sendGlobalEvent("ai_voice_stop", {
+        -- HTTP запрос для остановки записи
+        local voiceResponse = sendHttpRequest("http://127.0.0.1:8080/voice", {
+            action = "stop_recording",
+            voice_text = "Тестовый распознанный текст",
+            timestamp = data.timestamp or os.time()
+        })
+        
+        print("[AI] 🎤 Распознанный текст: " .. voiceResponse)
+        
+        -- Отправляем распознанный текст обратно
+        core.sendGlobalEvent("ai_voice_recognized", {
+            text = "Тестовый распознанный текст",
             timestamp = os.time()
         })
         
-        local voiceResponse = sendHttpRequest("http://127.0.0.1:8080/voice/stop", {
-            action = "stop_recording"
+    elseif eventName == "ai_connection_test" then
+        print("[AI] 🔗 Тест подключения от: " .. (data.source or "unknown"))
+        
+        -- Отправляем ping к HTTP мосту
+        local pingResponse = sendHttpRequest("http://127.0.0.1:8080/health", {
+            ping = true,
+            source = data.source,
+            timestamp = os.time()
         })
+        
+        print("[AI] 🏓 Ping ответ: " .. pingResponse)
+        
+    elseif eventName == "ai_http_test" then
+        print("[AI] 🌐 HTTP тест к: " .. (data.url or "unknown"))
+        
+        local testResponse = sendHttpRequest(data.url or "http://127.0.0.1:8080/test", {
+            test = true,
+            timestamp = data.timestamp or os.time()
+        })
+        
+        print("[AI] 📡 HTTP тест результат: " .. testResponse)
     end
 end
 
+-- Экспорт только разрешенных секций
 return {
     eventHandlers = {
-        onInit = M.onInit,
-        onUpdate = M.onUpdate,
-        onGlobalEvent = M.onGlobalEvent
+        onInit = onInit,
+        onGlobalEvent = onGlobalEvent
     }
 }
