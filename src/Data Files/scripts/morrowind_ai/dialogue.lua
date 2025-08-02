@@ -1,4 +1,3 @@
-local ui = require('openmw.ui')
 local core = require('openmw.core')
 local network = require('scripts.morrowind_ai.network')
 
@@ -36,12 +35,14 @@ function M.processPlayerMessage(message)
     -- Ждём ответ от ИИ
     local response = network.receiveFromServer()
     if response and response.ai_response then
-        -- Показываем ответ НПС в диалоге
-        ui.showMessage(response.ai_response)
+        -- Показываем ответ НПС через UI Manager
+        core.sendGlobalEvent("ai_dialogue_response", {
+            npc_name = response.npc_name or "НПС",
+            ai_response = response.ai_response
+        })
         
         -- Если есть аудио файл - проигрываем его
         if response.audio_file then
-            -- Здесь нужно добавить воспроизведение аудио
             M.playNPCAudio(response.audio_file)
         end
     end
@@ -51,6 +52,10 @@ function M.playNPCAudio(audioFile)
     -- OpenMW пока не поддерживает динамическое аудио
     -- Это нужно будет реализовать через внешние средства
     print("[Morrowind AI] Воспроизведение: " .. audioFile)
+    
+    core.sendGlobalEvent("ai_show_message", {
+        message = "[AI] 🔊 Воспроизводится аудио: " .. audioFile
+    })
 end
 
 return M

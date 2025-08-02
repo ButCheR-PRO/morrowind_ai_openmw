@@ -1,14 +1,12 @@
 local core = require('openmw.core')
 local async = require('openmw.async')
-local ui = require('openmw.ui')
 
 local M = {}
 
 local function sendHttpRequest(url, data)
-    -- Простая HTTP интеграция для OpenMW 0.49
     local success, result = pcall(function()
         print("[AI] HTTP запрос к: " .. url)
-        print("[AI] Данные: " .. core.getFormattedData(data))
+        print("[AI] Данные отправлены")
         
         -- В OpenMW 0.49 HTTP делается через внешние вызовы
         return "Тестовый ответ от ИИ сервера"
@@ -19,7 +17,11 @@ end
 
 function M.onInit()
     print("[Morrowind AI] 🤖 ИИ мод загружен успешно!")
-    ui.showMessage("[AI] 🔗 Подключение к HTTP серверу...")
+    
+    -- Отправляем сообщение через UI Manager
+    core.sendGlobalEvent("ai_show_message", {
+        message = "[AI] 🔗 Подключение к HTTP серверу..."
+    })
     
     -- Тестовый запрос к HTTP мосту
     local response = sendHttpRequest("http://127.0.0.1:8080/test", {
@@ -27,7 +29,10 @@ function M.onInit()
         timestamp = os.time()
     })
     
-    ui.showMessage("[AI] 📡 Ответ сервера: " .. tostring(response))
+    -- Отправляем результат через UI Manager
+    core.sendGlobalEvent("ai_connection_test", {
+        response = response
+    })
 end
 
 function M.onUpdate(dt)
@@ -47,10 +52,34 @@ function M.onGlobalEvent(eventName, data)
             player_message = message
         })
         
-        -- Отправляем ответ обратно
+        -- Отправляем ответ через UI Manager
         core.sendGlobalEvent("ai_dialogue_response", {
             npc_name = npcName,
             ai_response = response
+        })
+        
+    elseif eventName == "ai_voice_start" then
+        print("[AI] 🎤 Начало записи голоса")
+        
+        -- Отправляем событие UI Manager
+        core.sendGlobalEvent("ai_voice_start", {
+            timestamp = os.time()
+        })
+        
+        -- Здесь можно добавить логику работы с внешним HTTP сервером для голоса
+        local voiceResponse = sendHttpRequest("http://127.0.0.1:8080/voice/start", {
+            action = "start_recording"
+        })
+        
+    elseif eventName == "ai_voice_stop" then
+        print("[AI] 🎤 Остановка записи голоса")
+        
+        core.sendGlobalEvent("ai_voice_stop", {
+            timestamp = os.time()
+        })
+        
+        local voiceResponse = sendHttpRequest("http://127.0.0.1:8080/voice/stop", {
+            action = "stop_recording"
         })
     end
 end

@@ -1,14 +1,19 @@
 local core = require('openmw.core')
-local ui = require('openmw.ui')
+local input = require('openmw.input')
 local nearby = require('openmw.nearby')
 
 local M = {}
 
 local lastNpcInteraction = nil
+local voiceRecording = false
 
 function M.onInit()
     print("[Morrowind AI] 👤 Player модуль инициализирован")
-    ui.showMessage("[AI] ✅ Голосовое управление готово!")
+    
+    -- Отправляем сообщение через UI Manager
+    core.sendGlobalEvent("ai_show_message", {
+        message = "[AI] ✅ Голосовое управление готово! Нажмите Left Alt для активации."
+    })
 end
 
 function M.onUpdate(dt)
@@ -33,7 +38,11 @@ end
 
 function M.triggerNpcInteraction(actor)
     local npcName = actor.type.record.id
-    ui.showMessage("[AI] 🗣️ НПС рядом: " .. npcName)
+    
+    -- Отправляем уведомление через UI Manager
+    core.sendGlobalEvent("ai_npc_interaction", {
+        npc_name = npcName
+    })
     
     -- Отправляем событие для обработки диалога
     core.sendGlobalEvent("ai_dialogue_request", {
@@ -42,24 +51,27 @@ function M.triggerNpcInteraction(actor)
     })
 end
 
--- Обработка ответов от ИИ
-function M.onGlobalEvent(eventName, data)
-    if eventName == "ai_dialogue_response" then
-        local npcName = data.npc_name or "НПС"
-        local aiResponse = data.ai_response or "..."
-        
-        ui.showMessage("[" .. npcName .. "] " .. aiResponse)
-        print("[AI] ИИ ответ: " .. aiResponse)
+-- Реакция на нажатие клавиш
+function M.onKeyPress(key)
+    -- Left Alt (код 342) для активации голосового ввода
+    if key.code == 342 then -- Left Alt key
+        if not voiceRecording then
+            voiceRecording = true
+            -- Отправляем сигнал на начало записи
+            core.sendGlobalEvent("ai_voice_start", {
+                timestamp = os.time()
+            })
+        end
     end
 end
 
--- Реакция на нажатие клавиш (для активации голосового ввода)
-function M.onKeyPress(key)
-    if key.code == 59 then -- F1 key для активации голоса
-        ui.showMessage("[AI] 🎤 Начало записи голоса...")
-        
-        -- Отправляем сигнал на HTTP мост для начала записи
-        core.sendGlobalEvent("ai_voice_start", {
+-- Реакция на отпускание клавиш
+function M.onKeyRelease(key)
+    -- Left Alt отпущен - останавливаем запись
+    if key.code == 342 and voiceRecording then -- Left Alt key
+        voiceRecording = false
+        -- Отправляем сигнал на остановку записи
+        core.sendGlobalEvent("ai_voice_stop", {
             timestamp = os.time()
         })
     end
@@ -69,7 +81,7 @@ return {
     eventHandlers = {
         onInit = M.onInit,
         onUpdate = M.onUpdate,
-        onGlobalEvent = M.onGlobalEvent,
-        onKeyPress = M.onKeyPress
+        onKeyPress = M.onKeyPress,
+        onKeyRelease = M.onKeyRelease
     }
 }

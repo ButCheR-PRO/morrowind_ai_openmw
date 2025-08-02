@@ -1,2 +1,4 @@
-PLAYER: scripts/morrowind_ai/player.lua
+# Комментарии начинаются с #
 GLOBAL: scripts/morrowind_ai/init.lua
+PLAYER: scripts/morrowind_ai/player.lua
+PLAYER: scripts/morrowind_ai/ui_manager.lua

@@ -17,6 +17,11 @@ function M.sendDialogueRequest(npcName, playerMessage)
         }
     })
     
+    -- Уведомляем UI Manager
+    core.sendGlobalEvent("ai_show_message", {
+        message = "[AI] 📡 Запрос отправлен к ИИ серверу..."
+    })
+    
     return "Запрос отправлен к ИИ серверу..."
 end
 
@@ -31,6 +36,10 @@ function M.sendVoiceRequest(voiceText)
         }
     })
     
+    core.sendGlobalEvent("ai_show_message", {
+        message = "[AI] 🎤 Голос обработан и отправлен"
+    })
+    
     return "Голос обработан"
 end
 
@@ -43,7 +52,32 @@ function M.testConnection()
         data = {}
     })
     
+    core.sendGlobalEvent("ai_show_message", {
+        message = "[AI] 🔍 Тест запрос отправлен"
+    })
+    
     return "Тест запрос отправлен"
+end
+
+function M.sendToServer(data)
+    print("[AI Network] 📤 Отправка данных на сервер")
+    
+    core.sendGlobalEvent("http_request", {
+        url = HTTP_BASE .. "/api",
+        method = "POST",
+        data = data
+    })
+    
+    return "Данные отправлены"
+end
+
+function M.receiveFromServer()
+    -- В реальной реализации здесь должна быть логика получения ответа
+    -- Пока возвращаем тестовые данные
+    return {
+        ai_response = "Тестовый ответ от ИИ сервера",
+        npc_name = "Тестовый НПС"
+    }
 end
 
 return M
