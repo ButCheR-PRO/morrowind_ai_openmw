@@ -1,0 +1,100 @@
+# ============================================
+# CONFIG ДЛЯ OpenMW (адаптированный)
+# ============================================
+
+# Твой путь к Data Files
+morrowind_data_files_dir: F:/Games/MorrowindFullrest/game/Data Files
+language: ru
+
+# Event Bus - АДАПТИРУЕМ под OpenMW
+event_bus:
+  consumers: 30
+  producers: 30
+  system:
+    type: mwse_tcp          # Оставляем, но изменим порт
+    mwse_tcp:
+      encoding: utf-8       # OpenMW использует UTF-8, не cp1251!
+      port: 18080
+
+# Gemini LLM - ТВОЙ КЛЮЧ!
+llm:
+  system:
+    type: google
+    google:
+      api_key: "ВАШ_API_КЛЮЧ"  # Вставь свой реальный ключ!
+      model_name: gemini-2.0-flash    # Лучшая модель
+  llm_logger:
+    directory: F:/morrowind_ai_openmw/logs  # Твой путь
+    max_files: 300
+
+# Логирование
+log:
+  log_to_console: true
+  log_to_console_level: info
+  log_to_file: true
+  log_to_file_level: debug
+
+# RPC
+rpc:
+  max_wait_time_sec: 5.0
+
+# STT - VOSK вместо Whisper (бесплатный!)
+speech_to_text:
+  delayed_stop_sec: 0.5
+  system:
+    type: vosk
+    vosk:
+      model_path: F:/morrowind_ai_openmw/vosk-model-small-ru-0.22  # Скачаем модель
+      device_index: 0
+
+# TTS - ОТКЛЮЧАЕМ ElevenLabs (платный)
+text_to_speech:
+  sync_print_and_speak: false
+  output:
+    file_name_format: tts_{}.txt      # Сохраняем как текст
+    max_files_count: 15
+  ffmpeg:
+    path_to_ffmpeg_exe: C:/ffmpeg/bin/ffmpeg.exe  # Если есть FFmpeg
+    target_char_per_sec: 7
+  system:
+    type: dummy                       # Заглушка вместо ElevenLabs
+    dummy:
+      enabled: false
+
+# Базы данных
+database:
+  directory: F:/morrowind_ai_openmw/morrowind_ai_database
+
+npc_database:
+  max_stored_story_items: 250
+  max_used_in_llm_story_items: 50
+
+player_database:
+  max_stored_story_items: 200
+  book_name: "Книга Путей"
+  max_shown_story_items: 50
+
+# НПС спикер
+npc_speaker:
+  release_before_end_sec: 4.0
+
+# Директор НПС
+npc_director:
+  npc_max_phrases_after_player_hard_limit: 2
+  strategy_random:
+    npc_phrases_after_player_min: 1
+    npc_phrases_after_player_max: 3
+    npc_phrases_after_player_min_proba: 0.5
+  random_comment_delay_sec: 60
+  random_comment_proba: 0.1
+  force_sheogorath_level: mad
+  can_include_player_in_sheogorath: never
+
+# Инструкции для сцен (обязательная секция!)
+scene_instructions:
+  system:
+    type: yaml_file
+  yaml_file:
+    directory: scenes
+    default_scene: default.yml
+  file: scenes/default.yml
