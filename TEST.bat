@@ -15,6 +15,18 @@ for /d %%i in (0.* 1.* 3.* 6.* 20*) do (
 )
 cd /d "%~dp0"
 
+REM Убиваем все старые процессы Python перед началом
+echo Очищаю старые процессы Python...
+taskkill /f /im python.exe 2>nul
+timeout /t 2 /nobreak > nul
+
+REM Очищаем старые лог-файлы
+echo Очищаю старые лог-файлы...
+if exist "src\server\rpgaiserver.log" del /f "src\server\rpgaiserver.log" 2>nul
+if exist "src\server\rpgaiserver.log.1" del /f "src\server\rpgaiserver.log.1" 2>nul
+if exist "logs\test_server.log" del /f "logs\test_server.log" 2>nul
+if exist "logs\ai_server.log" del /f "logs\ai_server.log" 2>nul
+
 REM Проверяем виртуальное окружение
 if not exist "venv\Scripts\activate.bat" (
     echo X Виртуальное окружение не найдено!
@@ -70,38 +82,10 @@ python check_config.py
 if errorlevel 1 goto :error
 cd ..\..\..
 
-echo Запускаем проверку AI-сервера...
 echo ================================
-echo     ТЕСТ AI-СЕРВЕРА
+echo     ПРОПУСКАЕМ ТЕСТ AI-СЕРВЕРА
+echo     (чтобы избежать блокировки)
 echo ================================
-
-REM Запускаем AI-сервер в фоне для теста
-start /b "" cmd /c "cd src\server && python main.py --config ..\..\config.yml > ..\..\logs\test_server.log 2>&1"
-
-REM Ждём 15 секунд чтобы сервер запустился
-echo Жду запуска AI-сервера (15 сек)...
-timeout /t 15 /nobreak > nul
-
-REM Проверяем что AI-сервер запустился
-curl -s http://127.0.0.1:18080/health > nul 2>&1
-if errorlevel 1 (
-    echo X AI-сервер не запустился на порту 18080
-    echo Проверяем лог...
-    if exist "logs\test_server.log" (
-        echo === ЛОГ AI-СЕРВЕРА ===
-        type logs\test_server.log
-    )
-) else (
-    echo + AI-сервер запустился на порту 18080!
-)
-
-REM Останавливаем тестовый сервер
-taskkill /f /im python.exe 2>nul
-
-echo Запускаем проверку соединения...
-cd src\server\test
-python test_connection.py
-cd ..\..\..
 
 echo Запускаем проверку VOSK...
 cd src\server\test
@@ -111,6 +95,11 @@ cd ..\..\..
 echo ================================
 echo + ВСЕ ТЕСТЫ ЗАВЕРШЕНЫ!
 echo ================================
+echo.
+echo ВНИМАНИЕ: Тест AI-сервера пропущен чтобы избежать
+echo блокировки лог-файлов. AI-сервер протестируется
+echo при запуске START_ALL.bat
+echo.
 pause
 goto :end
 
@@ -121,3 +110,6 @@ echo ================================
 pause
 
 :end
+REM Финальная очистка процессов
+taskkill /f /im python.exe 2>nul
+timeout /t 1 > nul

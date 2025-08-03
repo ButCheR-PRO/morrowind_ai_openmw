@@ -5,6 +5,16 @@ echo    ЗАПУСК ВСЕХ СЕРВИСОВ
 echo ================================
 echo.
 
+REM Убиваем все старые процессы Python
+echo Очищаю старые процессы Python...
+taskkill /f /im python.exe 2>nul
+timeout /t 3 /nobreak > nul
+
+REM Очищаем лог-файлы которые могут быть заблокированы
+echo Очищаю старые лог-файлы...
+if exist "src\server\rpgaiserver.log" del /f "src\server\rpgaiserver.log" 2>nul
+if exist "src\server\rpgaiserver.log.1" del /f "src\server\rpgaiserver.log.1" 2>nul
+
 REM Проверяем наличие виртуального окружения в корне
 if not exist "venv\Scripts\activate.bat" (
     echo X Виртуальное окружение не найдено!
@@ -40,9 +50,9 @@ REM Запуск AI-сервера в отдельном окне с правильными путями И config.yml
 echo Запускаю AI-сервер с config.yml...
 start "AI Server" cmd /k "chcp 1251 > nul && cd /d %~dp0 && call venv\Scripts\activate.bat && cd src\server && python main.py --config ..\..\config.yml"
 
-REM Ждем 10 секунд чтобы AI-сервер успел запуститься
-echo Жду запуска AI-сервера (10 сек)...
-timeout /t 10 /nobreak > nul
+REM Ждем 15 секунд чтобы AI-сервер успел запуститься
+echo Жду запуска AI-сервера (15 сек)...
+timeout /t 15 /nobreak > nul
 
 REM Активируем venv и запускаем HTTP-мост с правильным путем
 call venv\Scripts\activate.bat
