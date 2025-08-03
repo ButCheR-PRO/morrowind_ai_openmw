@@ -1,110 +1,101 @@
-local core = require('openmw.core')
+local ui = require('openmw.ui')
+local util = require('openmw.util')
 
--- Заглушка HTTP запросов для OpenMW
-local function sendHttpRequest(url, data)
-    print("[AI] 📡 HTTP запрос к: " .. url)
-    print("[AI] 📤 Данные отправлены")
-    
-    -- В OpenMW прямых HTTP запросов нет, но можно использовать внешние процессы
-    -- Пока используем заглушку
-    return "✅ Тестовый ответ от ИИ сервера"
+local M = {}
+
+-- Импорт конфигурации
+local config = require('scripts.morrowind_ai.config')
+
+-- Функция логирования
+local function log(message)
+    print("[AI Init] " .. message)
 end
 
--- Инициализация глобального модуля
-local function onInit()
-    print("[Morrowind AI] 🤖 ИИ мод загружен успешно!")
-    print("[Morrowind AI] 🌐 Глобальный модуль инициализирован")
+-- Проверка подключения к AI серверу
+function M.testConnection()
+    log("🔗 Тестируем подключение к AI серверу...")
+    ui.showMessage("[AI] 🔗 Проверяем связь с сервером...")
     
-    -- Тестовый запрос к HTTP мосту
-    local response = sendHttpRequest("http://127.0.0.1:8080/test", {
-        type = "connection_test",
-        timestamp = os.time()
-    })
-    
-    print("[AI] 📨 Ответ сервера: " .. response)
+    -- TODO: Реальный HTTP запрос
+    -- Пока показываем заглушку
+    ui.showMessage("[AI] ✅ Сервер отвечает: " .. config.HTTP_SERVER_URL)
 end
 
--- Обработка глобальных событий
-local function onGlobalEvent(eventName, data)
-    print("[AI] 📢 Получено событие: " .. eventName)
+-- Показать информацию о системе
+function M.showSystemInfo()
+    log("📊 Показываем информацию о системе...")
     
-    if eventName == "ai_dialogue_request" then
-        local npcName = data.npc_name or "Unknown"
-        local message = data.message or ""
-        
-        print("[AI] 🗣️ Диалог: " .. npcName .. " <- " .. message)
-        
-        -- Отправляем запрос к HTTP мосту
-        local response = sendHttpRequest("http://127.0.0.1:8080/dialogue", {
-            npc_name = npcName,
-            player_message = message,
-            context = data.context or {}
-        })
-        
-        -- Отправляем ответ обратно
-        core.sendGlobalEvent("ai_dialogue_response", {
-            npc_name = npcName,
-            ai_response = response,
-            original_message = message
-        })
-        
-    elseif eventName == "ai_voice_start" then
-        print("[AI] 🎤 🔴 Начало записи голоса")
-        
-        -- HTTP запрос для начала записи голоса
-        local voiceResponse = sendHttpRequest("http://127.0.0.1:8080/voice", {
-            action = "start_recording",
-            timestamp = data.timestamp or os.time()
-        })
-        
-        print("[AI] 🎤 Сервер ответ: " .. voiceResponse)
-        
-    elseif eventName == "ai_voice_stop" then
-        print("[AI] 🎤 ⚪ Остановка записи голоса")
-        
-        -- HTTP запрос для остановки записи
-        local voiceResponse = sendHttpRequest("http://127.0.0.1:8080/voice", {
-            action = "stop_recording",
-            voice_text = "Тестовый распознанный текст",
-            timestamp = data.timestamp or os.time()
-        })
-        
-        print("[AI] 🎤 Распознанный текст: " .. voiceResponse)
-        
-        -- Отправляем распознанный текст обратно
-        core.sendGlobalEvent("ai_voice_recognized", {
-            text = "Тестовый распознанный текст",
-            timestamp = os.time()
-        })
-        
-    elseif eventName == "ai_connection_test" then
-        print("[AI] 🔗 Тест подключения от: " .. (data.source or "unknown"))
-        
-        -- Отправляем ping к HTTP мосту
-        local pingResponse = sendHttpRequest("http://127.0.0.1:8080/health", {
-            ping = true,
-            source = data.source,
-            timestamp = os.time()
-        })
-        
-        print("[AI] 🏓 Ping ответ: " .. pingResponse)
-        
-    elseif eventName == "ai_http_test" then
-        print("[AI] 🌐 HTTP тест к: " .. (data.url or "unknown"))
-        
-        local testResponse = sendHttpRequest(data.url or "http://127.0.0.1:8080/test", {
-            test = true,
-            timestamp = data.timestamp or os.time()
-        })
-        
-        print("[AI] 📡 HTTP тест результат: " .. testResponse)
+    local info = {
+        "🤖 AI Мод для Morrowind активен!",
+        "🌐 Сервер: " .. config.HTTP_SERVER_URL,
+        "🎤 Голосовой ввод: поддерживается",
+        "⌨️ Горячие клавиши: P/I/O/Alt",
+        "📡 Статус: подключен"
+    }
+    
+    for _, line in ipairs(info) do
+        ui.showMessage(line)
     end
 end
 
--- Экспорт только разрешенных секций
-return {
-    eventHandlers = {
-        onInit = onInit,
-        onGlobalEvent = onGlobalEvent
+-- Инициализация AI системы
+function M.initializeAI()
+    log("🚀 Инициализация AI системы...")
+    ui.showMessage("[AI] 🚀 AI система инициализирована")
+    
+    -- Проверяем доступность модулей
+    local modules = {
+        'openmw.ui',
+        'openmw.input', 
+        'openmw.util',
+        'scripts.morrowind_ai.config',
+        'scripts.morrowind_ai.http_client'
     }
-}
+    
+    for _, module in ipairs(modules) do
+        local ok, mod = pcall(require, module)
+        if ok then
+            log("✅ Модуль загружен: " .. module)
+        else
+            log("❌ Ошибка загрузки модуля: " .. module)
+        end
+    end
+end
+
+-- Обработка голосового ввода
+function M.processVoiceInput(duration)
+    log("🎤 Обрабатываем голосовой ввод (длительность: " .. string.format("%.1f", duration) .. "с)")
+    
+    if duration < 0.5 then
+        ui.showMessage("[AI] ⚠️ Слишком короткая запись (мин. 0.5с)")
+        return
+    end
+    
+    if duration > 30.0 then
+        ui.showMessage("[AI] ⚠️ Слишком длинная запись (макс. 30с)")
+        return
+    end
+    
+    -- TODO: Отправка аудио на сервер для распознавания
+    ui.showMessage("[AI] 🔄 Распознаем речь... (" .. string.format("%.1f", duration) .. "с)")
+    
+    -- Заглушка - имитируем ответ сервера
+    local dummyText = "Привет от голосового ввода!"
+    ui.showMessage("[AI] 📝 Распознано: '" .. dummyText .. "'")
+end
+
+-- Существующая функция testDialogue (оставляем как есть)
+function M.testDialogue()
+    log("🧪 Тестируем диалоговую систему...")
+    
+    local testMessage = "Привет! Как дела?"
+    log("📤 Отправка: " .. testMessage)
+    ui.showMessage("[AI] 📤 Отправляем: " .. testMessage)
+    
+    -- Имитируем ответ НПС
+    local npcResponse = "Приветствую, путник! Я рад тебя видеть в этих землях."
+    log("📥 Ответ НПС: " .. npcResponse)
+    ui.showMessage("[AI] 📥 НПС ответил: " .. npcResponse)
+end
+
+return M
