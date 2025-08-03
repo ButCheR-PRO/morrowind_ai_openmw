@@ -1,7 +1,7 @@
 @echo off
 chcp 1251 > nul
 echo ============================================================================
-echo ЗАПУСК HTTP МОСТА MORROWIND (порт 8080)
+echo ЗАПУСК AI СЕРВЕРА MORROWIND (порт 9090)
 echo ============================================================================
 echo.
 
@@ -16,20 +16,23 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo Проверяем работу AI сервера...
-echo Убедитесь что AI сервер запущен на порту 9090
-echo.
+echo Проверяем конфигурацию...
+if not exist "config.yml" (
+    echo ОШИБКА: config.yml не найден
+    echo Создайте файл config.yml с API ключами
+    pause
+    exit /b 1
+)
 
-echo Запускаем HTTP мост на порту 8080...
-cd src\server\test
-python http_bridge.py
+echo Запускаем AI сервер на порту 9090...
+cd src\server
+python main.py
 
 if errorlevel 1 (
-    echo ОШИБКА запуска HTTP моста
-    echo Проверьте что AI сервер запущен
+    echo ОШИБКА запуска AI сервера
     echo Проверьте логи в папке logs/
 )
 
 echo.
-echo HTTP мост остановлен
+echo AI сервер остановлен
 pause

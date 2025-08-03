@@ -1,372 +1,308 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+============================================================================
+Morrowind AI HTTP Bridge v1.0
+Мост между OpenMW (файлы) и AI-сервером (HTTP/WebSocket)
+============================================================================
+"""
 
+import os
+import sys
+import json
+import time
 import asyncio
 import aiohttp
-from aiohttp import web
-import yaml
-import logging
+from threading import Thread
 from pathlib import Path
-import json
+import logging
 from datetime import datetime
-import os
-import uuid
-
-def load_config():
-    """Загрузка конфигурации из config.yml"""
-    config_path = Path(__file__).parent.parent.parent.parent / 'config.yml'
-    
-    if not config_path.exists():
-        config_path = Path.cwd() / 'config.yml'
-        if not config_path.exists():
-            config_path = Path(__file__).parent.parent.parent / 'config.yml'
-    
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = yaml.safe_load(f)
-            logging.info(f"✅ Конфигурация загружена из {config_path}")
-            return config
-    except Exception as e:
-        logging.error(f"❌ Ошибка загрузки конфигурации: {e}")
-        return None
-
-# Загружаем конфигурацию
-config = load_config()
-
-if config:
-    HTTP_HOST = config.get("http_bridge", {}).get("host", "127.0.0.1")
-    HTTP_PORT = config.get("http_bridge", {}).get("port", 8080)
-    
-    # AI-сервер работает через event bus
-    AI_HOST = config.get("event_bus", {}).get("host", "127.0.0.1") 
-    AI_PORT = config.get("event_bus", {}).get("port", 9090)
-    AI_BASE_URL = f"tcp://{AI_HOST}:{AI_PORT}"
-else:
-    HTTP_HOST = "127.0.0.1"
-    HTTP_PORT = 8080
-    AI_HOST = "127.0.0.1"
-    AI_PORT = 9090
-    AI_BASE_URL = f"tcp://{AI_HOST}:{AI_PORT}"
 
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler('../../logs/http_bridge.log', encoding='utf-8'),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 logger = logging.getLogger(__name__)
 
-class AIEventBusClient:
-    """Клиент для подключения к AI-серверу через event bus (правильный формат)"""
-    
-    def __init__(self, host="127.0.0.1", port=9090):
-        self.host = host
-        self.port = port
-        self.reader = None
-        self.writer = None
-        self.connected = False
-        self.event_id = 1  # Счётчик событий
-    
-    async def connect(self):
-        """Подключение к event bus"""
+class MorrowindAIBridge:
+    def __init__(self):
+        self.config = {
+            'ai_server_host': 'localhost',
+            'ai_server_port': 9090,
+            'http_server_port': 8080,
+            'temp_dir': '../../Data Files/ai_temp/',
+            'request_file': '../../Data Files/ai_temp/ai_request.json',
+            'response_file': '../../Data Files/ai_temp/ai_response.json',
+            'signal_file': '../../Data Files/ai_temp/ai_signal.txt',
+            'check_interval': 0.5,  # секунды
+            'request_timeout': 30,   # секунды
+        }
+        
+        self.is_running = False
+        self.processed_requests = set()
+        
+        # Создаем временную директорию
+        self.ensure_temp_directory()
+        
+    def ensure_temp_directory(self):
+        """Создает временную директорию если её нет"""
+        temp_path = Path(self.config['temp_dir'])
+        temp_path.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Временная директория готова: {temp_path.absolute()}")
+        
+    def start(self):
+        """Запуск моста"""
+        logger.info("=" * 60)
+        logger.info("🌉 MORROWIND AI BRIDGE ЗАПУСКАЕТСЯ...")
+        logger.info("=" * 60)
+        
+        self.is_running = True
+        
+        # Запускаем файловый мониторинг в отдельном потоке
+        monitor_thread = Thread(target=self.file_monitor_loop, daemon=True)
+        monitor_thread.start()
+        
+        # Запускаем HTTP сервер
         try:
-            logger.info(f"🔌 Подключаюсь к AI event bus {self.host}:{self.port}...")
-            self.reader, self.writer = await asyncio.open_connection(self.host, self.port)
-            self.connected = True
-            logger.info("✅ Подключение к AI event bus установлено")
-            
-            # Отправляем первоначальное событие как OpenMW клиент
-            await self.send_init_event()
-            return True
+            asyncio.run(self.start_http_server())
+        except KeyboardInterrupt:
+            logger.info("Получен сигнал остановки...")
+            self.stop()
         except Exception as e:
-            logger.error(f"❌ Ошибка подключения к event bus: {e}")
-            self.connected = False
-            return False
-    
-    async def send_init_event(self):
-        """Отправка инициализационного события как OpenMW клиент"""
-        try:
-            init_event = {
-                "event_id": self.event_id,
-                "response_to_event_id": None,
-                "data": {
-                    "type": "client_init",  # Правильный тип для инициализации
-                    "client_info": {
-                        "name": "HTTP_Bridge_Client",
-                        "version": "1.0.0",
-                        "platform": "HTTP"
-                    }
-                }
-            }
+            logger.error(f"Критическая ошибка: {e}")
+            self.stop()
             
-            await self._send_raw_message(init_event)
-            self.event_id += 1
-            logger.info("📤 Отправлено инициализационное событие")
-            
-        except Exception as e:
-            logger.error(f"❌ Ошибка отправки инициализации: {e}")
-    
-    async def disconnect(self):
-        """Отключение от event bus"""
-        if self.writer:
-            self.writer.close()
-            await self.writer.wait_closed()
-        self.connected = False
-        logger.info("🔌 Отключен от AI event bus")
-    
-    async def _send_raw_message(self, message):
-        """Отправка сырого сообщения в правильном формате"""
-        if not self.connected:
-            raise Exception("Не подключен к event bus")
+    def stop(self):
+        """Остановка моста"""
+        self.is_running = False
+        logger.info("🛑 Morrowind AI Bridge остановлен")
         
-        # Сериализуем в JSON с правильной кодировкой
-        json_data = json.dumps(message, ensure_ascii=False).encode('utf-8')
+    def file_monitor_loop(self):
+        """Основной цикл мониторинга файлов от OpenMW"""
+        logger.info("👁️ Запущен мониторинг файлов от OpenMW...")
         
-        # Добавляем разделитель строк как ожидает сервер
-        data_with_newline = json_data + b'\n'
-        
-        # Отправляем
-        self.writer.write(data_with_newline)
-        await self.writer.drain()
-    
-    async def send_dialogue_request(self, session_id, text, npc_name="НПС"):
-        """Отправка запроса диалога в правильном формате для AI-сервера"""
-        if not self.connected:
-            if not await self.connect():
-                return None
-        
-        try:
-            # Формируем событие в формате который ожидает AI-сервер
-            dialogue_event = {
-                "event_id": self.event_id,
-                "response_to_event_id": None,
-                "data": {
-                    "type": "npc_dialogue_request",  # Правильный тип события
-                    "session_id": session_id,
-                    "player_message": text,
-                    "npc_name": npc_name,
-                    "context": {
-                        "location": "unknown",
-                        "mood": "neutral",
-                        "language": "ru"
-                    }
-                }
-            }
-            
-            await self._send_raw_message(dialogue_event)
-            self.event_id += 1
-            
-            logger.info(f"📤 Отправлен запрос диалога (event_id: {dialogue_event['event_id']})")
-            
-            # Ждём ответ с таймаутом
+        while self.is_running:
             try:
-                response = await asyncio.wait_for(self._read_response(), timeout=10.0)
-                logger.info(f"📥 Получен ответ от AI: {response.get('data', {}).get('type', 'unknown')}")
-                return response
-            except asyncio.TimeoutError:
-                logger.warning("⏰ Таймаут ожидания ответа от AI")
-                return None
+                self.check_for_new_requests()
+                time.sleep(self.config['check_interval'])
+            except Exception as e:
+                logger.error(f"Ошибка в мониторинге файлов: {e}")
+                time.sleep(1)
                 
-        except Exception as e:
-            logger.error(f"❌ Ошибка отправки диалога: {e}")
-            self.connected = False
-            return None
-    
-    async def _read_response(self):
-        """Чтение ответа от AI-сервера"""
-        try:
-            # Читаем строку до переноса
-            response_line = await self.reader.readline()
-            
-            if not response_line:
-                logger.error("❌ Пустой ответ от event bus")
-                return None
-            
-            # Декодируем JSON
-            response_text = response_line.decode('utf-8').strip()
-            response = json.loads(response_text)
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"❌ Ошибка чтения ответа: {e}")
-            return None
-
-# Создаем глобальный клиент event bus
-ai_client = AIEventBusClient(AI_HOST, AI_PORT)
-
-routes = web.RouteTableDef()
-
-@routes.get("/health")
-async def health(request):
-    """Проверка здоровья HTTP моста"""
-    bus_status = "connected" if ai_client.connected else "disconnected"
-    
-    return web.json_response({
-        "status": "healthy",
-        "message": "HTTP мост работает!",
-        "timestamp": datetime.now().isoformat(),
-        "uptime": True,
-        "config": {
-            "host": HTTP_HOST,
-            "port": HTTP_PORT,
-            "ai_server": AI_BASE_URL,
-            "event_bus_status": bus_status
-        }
-    })
-
-@routes.get("/test")
-async def test(request):
-    """Тестовый эндпоинт с проверкой event bus"""
-    logger.info("🧪 Тестовый запрос получен")
-    
-    # Проверяем подключение к event bus
-    if not ai_client.connected:
-        bus_working = await ai_client.connect()
-    else:
-        bus_working = True
-    
-    return web.json_response({
-        "status": "success", 
-        "message": "HTTP мост работает!",
-        "timestamp": datetime.now().isoformat(),
-        "client_info": {
-            "remote": request.remote,
-            "user_agent": request.headers.get("User-Agent"),
-            "query_params": dict(request.query)
-        },
-        "server_info": {
-            "host": HTTP_HOST,
-            "port": HTTP_PORT,
-            "pid": os.getpid(),
-            "event_bus_working": bus_working
-        }
-    })
-
-@routes.post("/dialogue")
-async def dialogue(request):
-    """Обработка диалогов с НПС через event bus (исправленный формат)"""
-    try:
-        payload = await request.json()
-    except Exception as e:
-        logger.error(f"❌ Ошибка декодирования JSON: {e}")
-        return web.json_response(
-            {"status": "error", "message": "Некорректный JSON"}, status=400
-        )
-
-    session_id = payload.get("session_id")
-    text = payload.get("text")
-    npc_name = payload.get("npc_name", "НПС")
-    
-    if not session_id or not text:
-        return web.json_response(
-            {"status": "error", "message": "Отсутствуют session_id или text"}, status=400
-        )
-
-    logger.info(f"🗣️ Диалог: {npc_name} <- {text}")
-
-    # Отправляем запрос через event bus в правильном формате
-    try:
-        response = await ai_client.send_dialogue_request(session_id, text, npc_name)
+    def check_for_new_requests(self):
+        """Проверяет новые запросы от OpenMW"""
+        signal_file = self.config['signal_file']
+        request_file = self.config['request_file']
         
-        if response and response.get("data"):
-            response_data = response["data"]
+        # Проверяем наличие сигнального файла
+        if not os.path.exists(signal_file):
+            return
             
-            # Извлекаем ответ в зависимости от типа события
-            if response_data.get("type") == "npc_dialogue_response":
-                ai_response = response_data.get("npc_message", "НПС задумался...")
-                logger.info("✅ Получен ответ от AI через event bus")
-            else:
-                ai_response = f"Извини, {npc_name} сейчас думает о твоих словах '{text}'."
-                logger.warning(f"⚠️ Неожиданный тип ответа: {response_data.get('type')}")
-        else:
-            logger.warning("⚠️ Event bus вернул пустой или неправильный ответ")
-            ai_response = f"Извини, {npc_name} сейчас думает о твоих словах '{text}'."
+        try:
+            # Читаем сигнальный файл
+            with open(signal_file, 'r', encoding='utf-8') as f:
+                signal_content = f.read().strip()
+                
+            # Проверяем что это новый запрос
+            if signal_content in self.processed_requests:
+                return
+                
+            # Читаем файл запроса
+            if not os.path.exists(request_file):
+                logger.warning("Сигнальный файл есть, но файл запроса отсутствует")
+                os.remove(signal_file)
+                return
+                
+            with open(request_file, 'r', encoding='utf-8') as f:
+                request_data = json.load(f)
+                
+            logger.info("=" * 50)
+            logger.info("📨 НОВЫЙ ЗАПРОС ОТ OPENMW")
+            logger.info(f"ID запроса: {request_data.get('request_id', 'unknown')}")
+            logger.info(f"НПС: {request_data.get('npc_name', 'Unknown')}")
+            logger.info(f"Сообщение: {request_data.get('message', '')}")
+            logger.info("=" * 50)
             
-    except Exception as e:
-        logger.error(f"❌ Ошибка общения с AI через event bus: {e}")
-        ai_response = f"Извини, {npc_name} сейчас не может ответить. Попробуй позже."
-
-    response_data = {
-        "status": "success",
-        "ai_response": ai_response,
-        "npc_name": npc_name,
-        "timestamp": datetime.now().isoformat(),
-        "method": "event_bus"
-    }
-    
-    logger.info(f"📤 Ответ: {ai_response[:50]}...")
-    return web.json_response(response_data)
-
-@routes.post("/voice")
-async def voice(request):
-    """Обработка голосового ввода"""
-    try:
-        if request.content_type == 'application/json':
-            payload = await request.json()
-            text = payload.get("text", "")
-            logger.info(f"🎤 Голос (JSON): {text}")
+            # Отправляем на AI-сервер
+            asyncio.run(self.send_to_ai_server(request_data))
             
-            return web.json_response({
-                "status": "success",
-                "recognized_text": text,
-                "method": "json"
-            })
+            # Помечаем как обработанный
+            self.processed_requests.add(signal_content)
             
-        elif request.content_type.startswith('audio/'):
-            audio_data = await request.read()
-            logger.info(f"🎤 Голос (аудио): {len(audio_data)} байт")
+            # Удаляем сигнальный файл
+            os.remove(signal_file)
             
-            return web.json_response({
-                "status": "success", 
-                "recognized_text": "Распознавание аудио через VOSK не настроено",
-                "method": "audio",
-                "size": len(audio_data)
-            })
-        else:
+        except Exception as e:
+            logger.error(f"Ошибка обработки запроса: {e}")
+            # Удаляем сигнальный файл в случае ошибки
+            if os.path.exists(signal_file):
+                os.remove(signal_file)
+                
+    async def send_to_ai_server(self, request_data):
+        """Отправляет запрос на AI-сервер"""
+        ai_url = f"http://{self.config['ai_server_host']}:{self.config['ai_server_port']}/api/dialogue"
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Формируем payload для AI-сервера
+                payload = {
+                    'npc_name': request_data.get('npc_name', ''),
+                    'message': request_data.get('message', ''),
+                    'context': request_data.get('context', ''),
+                    'language': request_data.get('language', 'ru'),
+                    'game': 'morrowind',
+                    'timestamp': request_data.get('timestamp', int(time.time()))
+                }
+                
+                logger.info(f"🚀 Отправляем запрос на AI-сервер: {ai_url}")
+                
+                async with session.post(
+                    ai_url, 
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=self.config['request_timeout'])
+                ) as response:
+                    
+                    if response.status == 200:
+                        ai_response = await response.json()
+                        logger.info("✅ Получен ответ от AI-сервера")
+                        await self.save_ai_response(ai_response, request_data)
+                    else:
+                        logger.error(f"❌ AI-сервер вернул ошибку: {response.status}")
+                        await self.save_error_response(f"AI server error: {response.status}", request_data)
+                        
+        except aiohttp.ClientError as e:
+            logger.error(f"❌ Ошибка подключения к AI-серверу: {e}")
+            await self.save_error_response(f"Connection error: {e}", request_data)
+        except Exception as e:
+            logger.error(f"❌ Неожиданная ошибка при обращении к AI: {e}")
+            await self.save_error_response(f"Unexpected error: {e}", request_data)
+            
+    async def save_ai_response(self, ai_response, original_request):
+        """Сохраняет ответ AI для OpenMW"""
+        response_data = {
+            'request_id': original_request.get('request_id', ''),
+            'npc_name': original_request.get('npc_name', ''),
+            'ai_response': ai_response.get('response', 'Извините, не могу ответить'),
+            'status': 'success',
+            'timestamp': int(time.time()),
+            'processing_time': ai_response.get('processing_time', 0)
+        }
+        
+        response_file = self.config['response_file']
+        
+        try:
+            with open(response_file, 'w', encoding='utf-8') as f:
+                json.dump(response_data, f, ensure_ascii=False, indent=2)
+                
+            logger.info(f"💾 Ответ сохранен для OpenMW: {response_file}")
+            logger.info(f"🤖 AI ответ: {ai_response.get('response', '')[:100]}...")
+            
+        except Exception as e:
+            logger.error(f"Ошибка сохранения ответа: {e}")
+            
+    async def save_error_response(self, error_message, original_request):
+        """Сохраняет ошибку для OpenMW"""
+        response_data = {
+            'request_id': original_request.get('request_id', ''),
+            'npc_name': original_request.get('npc_name', ''),
+            'ai_response': f"Извините, возникла техническая проблема: {error_message}",
+            'status': 'error',
+            'error': error_message,
+            'timestamp': int(time.time())
+        }
+        
+        response_file = self.config['response_file']
+        
+        try:
+            with open(response_file, 'w', encoding='utf-8') as f:
+                json.dump(response_data, f, ensure_ascii=False, indent=2)
+                
+            logger.info(f"💾 Ошибка сохранена для OpenMW: {response_file}")
+            
+        except Exception as e:
+            logger.error(f"Ошибка сохранения ошибки: {e}")
+            
+    async def start_http_server(self):
+        """Запускает HTTP сервер для внешних запросов"""
+        from aiohttp import web
+        
+        app = web.Application()
+        
+        # Маршруты
+        app.router.add_get('/', self.handle_status)
+        app.router.add_post('/api/dialogue', self.handle_dialogue_request)
+        app.router.add_get('/api/status', self.handle_status)
+        
+        # Запуск сервера
+        runner = web.AppRunner(app)
+        await runner.setup()
+        
+        site = web.TCPSite(runner, 'localhost', self.config['http_server_port'])
+        await site.start()
+        
+        logger.info(f"🌐 HTTP сервер запущен на порту {self.config['http_server_port']}")
+        logger.info("🔗 Доступные эндпоинты:")
+        logger.info(f"   - GET  http://localhost:{self.config['http_server_port']}/")
+        logger.info(f"   - POST http://localhost:{self.config['http_server_port']}/api/dialogue")
+        logger.info(f"   - GET  http://localhost:{self.config['http_server_port']}/api/status")
+        
+        # Ждем завершения
+        try:
+            while self.is_running:
+                await asyncio.sleep(1)
+        finally:
+            await runner.cleanup()
+            
+    async def handle_status(self, request):
+        """Обработчик статуса"""
+        status = {
+            'service': 'Morrowind AI Bridge',
+            'version': '1.0',
+            'status': 'running' if self.is_running else 'stopped',
+            'uptime': int(time.time()),
+            'processed_requests': len(self.processed_requests),
+            'ai_server': f"{self.config['ai_server_host']}:{self.config['ai_server_port']}"
+        }
+        
+        return web.json_response(status)
+        
+    async def handle_dialogue_request(self, request):
+        """Обработчик внешних запросов диалогов"""
+        try:
+            data = await request.json()
+            
+            # Перенаправляем на AI-сервер
+            ai_response = await self.forward_to_ai_server(data)
+            
+            return web.json_response(ai_response)
+            
+        except Exception as e:
+            logger.error(f"Ошибка обработки внешнего запроса: {e}")
             return web.json_response(
-                {"status": "error", "message": "Неподдерживаемый тип контента"}, 
-                status=400
+                {'error': str(e)}, 
+                status=500
             )
             
-    except Exception as e:
-        logger.error(f"❌ Ошибка обработки голоса: {e}")
-        return web.json_response(
-            {"status": "error", "message": str(e)}, status=500
-        )
-
-async def cleanup_on_shutdown(app):
-    """Очистка при завершении работы"""
-    logger.info("🧹 Очистка ресурсов...")
-    await ai_client.disconnect()
+    async def forward_to_ai_server(self, data):
+        """Перенаправляет запрос на AI-сервер"""
+        ai_url = f"http://{self.config['ai_server_host']}:{self.config['ai_server_port']}/api/dialogue"
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(ai_url, json=data) as response:
+                return await response.json()
 
 def main():
-    """Главная функция запуска HTTP моста"""
-    logger.info("🌉 Запуск OpenMW-AI HTTP моста...")
+    """Главная функция"""
+    print("🌉 Morrowind AI Bridge v1.0")
+    print("=" * 40)
     
-    if config:
-        logger.info(f"✅ Конфигурация загружена из config.yml")
-    else:
-        logger.warning("⚠️ Используются значения по умолчанию")
-    
-    logger.info("🌉 Инициализация HTTP моста")
-    logger.info(f"📡 AI event bus: {AI_BASE_URL}")
-    logger.info(f"🔌 HTTP сервер: {HTTP_HOST}:{HTTP_PORT}")
-    
-    # Создаем приложение
-    app = web.Application()
-    app.add_routes(routes)
-    
-    # Добавляем обработчик очистки
-    app.on_cleanup.append(cleanup_on_shutdown)
-    
-    logger.info("✅ HTTP мост готов к работе!")
-    logger.info(f"🎮 Тест: http://{HTTP_HOST}:{HTTP_PORT}/test")
-    logger.info(f"❤️ Здоровье: http://{HTTP_HOST}:{HTTP_PORT}/health")
-    logger.info(f"📞 Диалоги: POST http://{HTTP_HOST}:{HTTP_PORT}/dialogue")
-    logger.info(f"🎤 Голос: POST http://{HTTP_HOST}:{HTTP_PORT}/voice")
-    
-    # Запускаем сервер
-    web.run_app(app, host=HTTP_HOST, port=HTTP_PORT)
+    bridge = MorrowindAIBridge()
+    bridge.start()
 
 if __name__ == "__main__":
     main()
