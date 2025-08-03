@@ -1,10 +1,5 @@
-# Morrowind AI OpenMW Scripts - исправленная версия
-
-# Главный скрипт с обработчиками клавиш (ГЛАВНОЕ!)
+# Morrowind AI OpenMW Scripts
 GLOBAL: scripts/morrowind_ai.lua
-
-# Вспомогательные модули
 GLOBAL: scripts/morrowind_ai/init.lua
 PLAYER: scripts/morrowind_ai/player.lua
-
-# ui_manager.lua УБИРАЕМ - он использует openmw.ui который недоступен в 0.49.0
+PLAYER: scripts/morrowind_ai/console_commands.lua
