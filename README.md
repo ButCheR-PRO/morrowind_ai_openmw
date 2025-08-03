@@ -31,8 +31,12 @@
 git clone https://github.com/ButCheR-PRO/morrowind_ai_openmw.git
 cd morrowind_ai_openmw
 
+2. **Или [скачай] (https://github.com/ButCheR-PRO/morrowind_ai_openmw/) репозиторий вручную, нажав залёную кнопку "Code" - "Download ZIP"**
 
-2. **Запусти автоматическую установку INSTALL.bat:**
+3. Скачай и установи [Python 3.12] (https://www.python.org/downloads/release/python-31210/) добавив переменную PATH
+
+
+4. **Запусти автоматическую установку INSTALL.bat:**
 Скрипт автоматически:
 Создаст виртуальное окружение Python
 Установит все зависимости
@@ -40,7 +44,7 @@ cd morrowind_ai_openmw
 Настроит базовую конфигурацию
 
 
-3. **Получи Gemini API ключ:**
+5. **Получи Gemini API ключ:**
    - Иди на https://ai.google.dev/
    - Создай новый проект
    - Получи API ключ (бесплатно до 15 запросов/мин)
@@ -48,11 +52,11 @@ cd morrowind_ai_openmw
    - Замени ВАШ_GEMINI_API_KEY на свой ключ
 
 
-4. **Настрой пути в config.yml:**
+6. **Настрой пути в config.yml:**
 # Измени путь к Data Files твоего Morrowind
 morrowind_data_files_dir: "C:/Games/Morrowind/Data Files"
 
-5. **Добавь в openmw.cfg:**
+7. **Добавь в openmw.cfg:**
 Открой свой openmw.cfg (обычно в Documents\My Games\OpenMW\) и добавь:
 # Путь к AI скриптам
 data="путь_к_серверу/morrowind_ai_openmw/src/Data Files"
