@@ -61,12 +61,12 @@ taskkill /f /im python.exe 2>nul >nul
 timeout /t 2 /nobreak >nul
 
 echo [4/5] Запускаем AI сервер (порт 9090) с конфигом...
-REM ИСПРАВЛЯЕМ ЗАПУСК - указываем путь к конфигу в корне
 start "AI Server" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && cd src\server && python main.py --config ../../config.yml"
 timeout /t 5 /nobreak >nul
 
-echo [5/5] Запускаем HTTP мост (порт 8080)...  
-start "HTTP Bridge" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && cd src\server\test && python http_bridge.py"
+echo [5/5] Запускаем LOG PARSER (порт 8080)...  
+start "Log Parser" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && cd src\server\test && python http_bridge_log_parser.py"
+
 
 echo.
 echo ВСЕ СЕРВИСЫ ЗАПУЩЕНЫ!
