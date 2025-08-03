@@ -31,9 +31,9 @@
 git clone https://github.com/ButCheR-PRO/morrowind_ai_openmw.git
 cd morrowind_ai_openmw
 
-2. **Или [скачай] (https://github.com/ButCheR-PRO/morrowind_ai_openmw/) репозиторий вручную, нажав залёную кнопку "Code" - "Download ZIP"**
+2. **Или [скачай](https://github.com/ButCheR-PRO/morrowind_ai_openmw/) репозиторий вручную, нажав залёную кнопку "Code" - "Download ZIP"**
 
-3. Скачай и установи [Python 3.12] (https://www.python.org/downloads/release/python-31210/) добавив переменную PATH
+3. Скачай и установи [Python 3.12](https://www.python.org/downloads/release/python-31210/) добавив переменную PATH
 
 
 4. **Запусти автоматическую установку INSTALL.bat:**
