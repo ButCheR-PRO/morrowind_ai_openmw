@@ -13,7 +13,6 @@ log:
   log_to_file: true
   log_to_file_level: "debug"
 
-
 # === РАСПОЗНАВАНИЕ РЕЧИ (STT) ===
 speech_to_text:
   backend: "vosk"
@@ -51,7 +50,7 @@ llm:
   system:
     type: "google"
     google:
-      api_key: "ВАШ_API_GEMINI_ключ"
+      api_key: "ВАШ_GEMINI_API"
       model: "gemini-1.5-flash"
       model_name: "gemini-1.5-flash"
     anthropic:
@@ -80,12 +79,29 @@ event_bus:
   producers: 0
   consumers: 0
 
-
-# === RPC СЕРВЕР ===
+# === RPC СЕРВЕР (HTTP API) ===
 rpc:
   host: "127.0.0.1"
   port: 18080
   max_wait_time_sec: 30
+  enabled: true
+  endpoints:
+    - "/health"
+    - "/generate"
+    - "/dialogue"
+    - "/voice"
+
+# === HTTP API (ДОПОЛНИТЕЛЬНО) ===
+http_api:
+  enabled: true
+  host: "127.0.0.1"
+  port: 18080
+  cors: true
+  endpoints:
+    health: "/health"
+    generate: "/generate"
+    dialogue: "/dialogue"
+    voice: "/voice"
 
 # === БАЗА ДАННЫХ ===
 database:
@@ -130,7 +146,7 @@ scene_instructions:
   hotkey_voice: "alt"
   file: "data/scene_instructions.txt"
 
-# === HTTP МОСТ (твои настройки сохранены) ===
+# === HTTP МОСТ ===
 http_bridge:
   host: "127.0.0.1"
   port: 8080

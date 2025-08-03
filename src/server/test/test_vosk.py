@@ -16,18 +16,25 @@ logger = logging.getLogger(__name__)
 
 def load_config():
     """Загрузка конфигурации"""
-    config_path = Path('config.yml')
+    # ПРАВИЛЬНЫЙ путь к config.yml в корне проекта
+    config_path = Path(__file__).parent.parent.parent.parent / 'config.yml'
     
-    # Ищем config.yml в текущей и родительских директориях
+    # Альтернативные пути поиска
     if not config_path.exists():
-        for parent in Path.cwd().parents:
-            potential_config = parent / 'config.yml'
+        config_path = Path.cwd() / 'config.yml'
+    
+    if not config_path.exists():
+        current = Path.cwd()
+        for _ in range(5):
+            potential_config = current / 'config.yml'
             if potential_config.exists():
                 config_path = potential_config
                 break
-        else:
-            logger.warning("⚠️ config.yml не найден")
-            return {}
+            current = current.parent
+    
+    if not config_path.exists():
+        logger.warning("⚠️ config.yml не найден")
+        return {}
     
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -62,21 +69,24 @@ def find_vosk_model(config):
     print("🔍 Ищем модель VOSK...")
     
     # Проверяем в конфигурации
-    vosk_config = config.get('vosk', {})
+    vosk_config = config.get('speech_to_text', {}).get('vosk', {})
     model_path_from_config = vosk_config.get('model_path')
     
-    # Возможные пути для поиска модели
+    # Возможные пути для поиска модели (ПРАВИЛЬНЫЕ ПУТИ!)
     search_paths = []
     
     if model_path_from_config:
         search_paths.append(Path(model_path_from_config))
     
-    # Стандартные места поиска
+    # Ищем в корне проекта - туда где лежит config.yml
+    config_dir = Path(__file__).parent.parent.parent.parent
     search_paths.extend([
-        Path("vosk-model-small-ru-0.22"),
-        Path("vosk-model-ru-0.22"),
-        Path("models/vosk-model-small-ru-0.22"),
-        Path("models/vosk-model-ru-0.22"),
+        config_dir / "vosk-model-small-ru-0.22",  # В корне проекта
+        config_dir / "vosk-model-ru-0.22",        # В корне проекта
+        Path("vosk-model-small-ru-0.22"),         # Относительный путь
+        Path("vosk-model-ru-0.22"),               # Относительный путь
+        Path("models/vosk-model-small-ru-0.22"),  # В папке models
+        Path("models/vosk-model-ru-0.22"),        # В папке models
         Path("../models/vosk-model-small-ru-0.22"),
         Path("../models/vosk-model-ru-0.22"),
         Path("vosk-model"),
@@ -92,6 +102,18 @@ def find_vosk_model(config):
     print("❌ Модель VOSK не найдена!")
     print("💡 Скачайте модель с: https://alphacephei.com/vosk/models")
     print("📁 Рекомендуемая модель: vosk-model-small-ru-0.22")
+    print("📂 Поместите модель в корень проекта (рядом с config.yml)")
+    
+    # Показываем что есть в корне проекта
+    print("📂 Содержимое корня проекта:")
+    root_dir = Path(__file__).parent.parent.parent.parent
+    if root_dir.exists():
+        for item in root_dir.iterdir():
+            if item.is_dir():
+                print(f"   📁 {item.name}/")
+            else:
+                print(f"   📄 {item.name}")
+    
     return None
 
 def check_model_structure(model_path):
@@ -284,7 +306,7 @@ def test_vosk():
     
     # 4. Тестируем загрузку
     print(f"\n4️⃣ ТЕСТ ЗАГРУЗКИ")
-    vosk_config = config.get('vosk', {})
+    vosk_config = config.get('speech_to_text', {}).get('vosk', {})
     sample_rate = vosk_config.get('sample_rate', 16000)
     
     model, recognizer = test_vosk_loading(vosk_module, model_path, sample_rate)
