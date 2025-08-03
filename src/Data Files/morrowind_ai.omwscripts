@@ -2,4 +2,3 @@
 GLOBAL: scripts/morrowind_ai.lua
 GLOBAL: scripts/morrowind_ai/init.lua
 PLAYER: scripts/morrowind_ai/player.lua
-PLAYER: scripts/morrowind_ai/console_commands.lua
