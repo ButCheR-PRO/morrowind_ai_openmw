@@ -1,8 +1,7 @@
--- Главный файл AI мода для OpenMW
--- Этот файл регистрирует все глобальные обработчики
+-- Главный файл OpenMW AI Mod
+-- Подключает все обработчики событий
 
--- Импортируем глобальные обработчики
-local globalHandlers = require('scripts.morrowind_ai.global_handlers')
+local keyboardHandler = require('scripts.morrowind_ai.keyboard_handler')
 
--- Возвращаем обработчики для OpenMW
-return globalHandlers
+-- Возвращаем обработчики в OpenMW
+return keyboardHandler
