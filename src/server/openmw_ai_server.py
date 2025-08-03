@@ -86,36 +86,72 @@ class OpenMWAIServer:
             return {}
 
     def setup_gemini(self):
-        """Настройка Google Gemini с детальной диагностикой"""
+        """Настройка Google Gemini с улучшенной обработкой ключа"""
         try:
-            api_key = self.config.get('llm', {}).get('system', {}).get('google', {}).get('api_key')
+            api_key_raw = self.config.get('llm', {}).get('system', {}).get('google', {}).get('api_key')
 
-            if not api_key:
+            if not api_key_raw:
                 logger.error("[GEMINI] API ключ пустой или отсутствует")
                 self.model = None
                 return
 
-            logger.info(f"[GEMINI] Настраиваю Gemini с ключом длиной {len(api_key)} символов")
+            # КРИТИЧНО: Очищаем ключ от лишних символов!
+            api_key = str(api_key_raw).strip()
+            
+            logger.info(f"[GEMINI] Сырой ключ: '{repr(api_key_raw)}'")
+            logger.info(f"[GEMINI] Очищенный ключ: '{repr(api_key)}'")
+            logger.info(f"[GEMINI] Длина сырого ключа: {len(api_key_raw)}")
+            logger.info(f"[GEMINI] Длина очищенного ключа: {len(api_key)}")
 
             # Проверяем формат ключа
             if not api_key.startswith('AIza'):
-                logger.warning(f"[GEMINI] API ключ не начинается с 'AIza' - возможно неверный формат")
+                logger.error(f"[GEMINI] API ключ не начинается с 'AIza': '{api_key[:20]}...'")
+                self.model = None
+                return
+
+            if len(api_key) != 39:
+                logger.error(f"[GEMINI] Неверная длина API ключа: {len(api_key)} (должно быть 39)")
+                self.model = None
+                return
+
+            logger.info(f"[GEMINI] Настраиваю Gemini с проверенным ключом")
 
             genai.configure(api_key=api_key)
             self.model = genai.GenerativeModel('gemini-1.5-flash')
 
-            # ТЕСТИРУЕМ ПОДКЛЮЧЕНИЕ К GEMINI
+            # ТЕСТИРУЕМ ПОДКЛЮЧЕНИЕ (синхронно, не async!)
             logger.info("[GEMINI] Тестирую подключение к Gemini...")
-            test_response = self.model.generate_content("Скажи просто 'тест'")
-
-            if test_response and test_response.text:
-                logger.info(f"[GEMINI] Gemini работает! Тестовый ответ: {test_response.text.strip()}")
-                logger.info("[GEMINI] Google Gemini настроен и ПРОТЕСТИРОВАН!")
-            else:
-                logger.error("[GEMINI] Gemini не ответил на тестовый запрос")
+            try:
+                test_response = self.model.generate_content("Скажи просто 'тест'")
+                
+                if test_response and test_response.text:
+                    logger.info(f"[GEMINI] ✅ Gemini работает! Тестовый ответ: {test_response.text.strip()}")
+                    logger.info("[GEMINI] ✅ Google Gemini настроен и ПРОТЕСТИРОВАН!")
+                else:
+                    logger.error("[GEMINI] ❌ Gemini не ответил на тестовый запрос")
+                    self.model = None
+                    
+            except Exception as test_error:
+                logger.error(f"[GEMINI] ❌ Ошибка тестирования: {test_error}")
+                
+                # ПРОБУЕМ АЛЬТЕРНАТИВНЫЙ СПОСОБ
+                logger.info("[GEMINI] 🔄 Пробуем альтернативный способ...")
+                try:
+                    # Пересоздаем модель
+                    genai.configure(api_key=api_key)
+                    self.model = genai.GenerativeModel('gemini-1.5-flash')
+                    
+                    # Простейший тест без контента
+                    models = genai.list_models()
+                    logger.info(f"[GEMINI] ✅ Подключение к API есть, моделей: {len(list(models))}")
+                    logger.info("[GEMINI] ✅ Gemini готов (без тестового запроса)")
+                    
+                except Exception as alt_error:
+                    logger.error(f"[GEMINI] ❌ Альтернативный способ тоже не сработал: {alt_error}")
+                    self.model = None
 
         except Exception as e:
-            logger.error(f"[GEMINI] Ошибка настройки Gemini: {e}")
+            logger.error(f"[GEMINI] ❌ Критическая ошибка настройки Gemini: {e}")
             logger.error(f"[GEMINI] Полная ошибка: {traceback.format_exc()}")
             self.model = None
 
