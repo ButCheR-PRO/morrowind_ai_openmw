@@ -76,7 +76,7 @@ if exist "settings-default.cfg" (
 
 echo.
 echo Запускаем OpenMW для теста...
-start openmw.exe
+start openmw.exe --debug-lua > openmw_debug.log 2>&1
 
 echo.
 echo В игре проверь Lua консоль:

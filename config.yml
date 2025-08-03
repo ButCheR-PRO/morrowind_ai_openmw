@@ -1,17 +1,23 @@
-# === ПУТИ К ФАЙЛАМ MORROWIND ===
+# === ПУТЬ К ДАННЫМ MORROWIND ===
 morrowind_data_files_dir: "F:/Games/MorrowindFullrest/game/Data Files"
 
-# === ЯЗЫК СИСТЕМЫ ===
+# === ЯЗЫК ===
 language: "ru"
 
-# === ЛОГИРОВАНИЕ ===
+# === НАСТРОЙКИ ЛОГИРОВАНИЯ ===
 log:
   level: "INFO"
   file_path: "logs/ai_server.log"
+  log_to_console: true
+  log_to_console_level: "INFO"
+  log_to_file: true
+  log_to_file_level: "DEBUG"
 
 # === РАСПОЗНАВАНИЕ РЕЧИ (STT) ===
 speech_to_text:
-  backend: "vosk"  # vosk, whisper, azure
+  backend: "vosk"
+  system: "pynput"
+  delayed_stop_sec: 0.5
   vosk:
     model_path: "vosk-model-small-ru-0.22"
     sample_rate: 16000
@@ -24,7 +30,9 @@ speech_to_text:
 
 # === СИНТЕЗ РЕЧИ (TTS) ===
 text_to_speech:
-  backend: "elevenlabs"  # elevenlabs, azure
+  backend: "elevenlabs"
+  system: "pygame"
+  output: "device"
   elevenlabs:
     api_key: ""
     voice_id: ""
@@ -35,6 +43,7 @@ text_to_speech:
 # === LLM ПРОВАЙДЕРЫ ===
 llm:
   system:
+    type: "google"
     google:
       api_key: "ТВОЙ_GEMINI_API_КЛЮЧ_ЗДЕСЬ"
       model: "gemini-1.5-flash"
@@ -52,28 +61,42 @@ llm:
 event_bus:
   host: "127.0.0.1"
   port: 9090
+  system: "mqtt"
+  producers: []
+  consumers: []
 
 # === RPC СЕРВЕР ===
 rpc:
   host: "127.0.0.1"
   port: 18080
+  max_wait_time_sec: 30
 
 # === БАЗА ДАННЫХ ===
 database:
   path: "data/main.db"
+  directory: "data"
 
 # === БАЗА ДАННЫХ ИГРОКА ===
 player_database:
   path: "data/players.db"
+  max_stored_story_items: 100
+  max_shown_story_items: 20
+  book_name: "Дневник приключений"
 
 # === БАЗА ДАННЫХ НПС ===
 npc_database:
   path: "data/npcs.db"
+  max_stored_story_items: 50
+  max_used_in_llm_story_items: 10
 
 # === РЕЖИССЁР НПС ===
 npc_director:
-  max_concurrent_conversations: 5
+  max_concurrent_conversations: 3
   response_timeout: 30
+  npc_max_phrases_after_player_hard_limit: 5
+  random_comment_proba: 0.1
+  random_comment_delay_sec: 30
+  strategy_random: false
 
 # === ГОЛОС НПС ===
 npc_speaker:
@@ -84,8 +107,9 @@ npc_speaker:
 scene_instructions:
   enable_voice_commands: true
   hotkey_voice: "alt"
+  file: "data/scene_instructions.txt"
 
-# === HTTP МОСТ (твои настройки) ===
+# === HTTP МОСТ (твои настройки сохранены) ===
 http_bridge:
   host: "127.0.0.1"
   port: 8080

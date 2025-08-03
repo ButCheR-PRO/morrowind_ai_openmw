@@ -9,21 +9,37 @@ from pathlib import Path
 def check_config():
     print("🔍 Проверяем config.yml...")
     
-    # Проверяем наличие файла
-    config_path = Path('config.yml')
+    # ПРАВИЛЬНЫЙ путь - ищем в корне проекта (на 3 уровня выше от src/server/test/)
+    config_path = Path(__file__).parent.parent.parent.parent / 'config.yml'
+    
+    # Альтернативный способ поиска - через абсолютный путь
     if not config_path.exists():
-        print("❌ Файл config.yml НЕ найден!")
-        print("📁 Ищем в текущей директории:", Path.cwd())
-        
-        # Попробуем найти config.yml в родительских директориях
-        for parent in Path.cwd().parents:
-            potential_config = parent / 'config.yml'
+        # Попробуем найти через рабочую директорию
+        config_path = Path.cwd() / 'config.yml'
+    
+    # Ещё один способ - через переменные окружения или стандартные места
+    if not config_path.exists():
+        # Ищем в родительских директориях от текущей
+        current = Path.cwd()
+        for _ in range(5):  # максимум 5 уровней вверх
+            potential_config = current / 'config.yml'
             if potential_config.exists():
-                print(f"✅ Найден config.yml в: {potential_config}")
                 config_path = potential_config
                 break
-        else:
-            return False
+            current = current.parent
+    
+    if not config_path.exists():
+        print("❌ Файл config.yml НЕ найден!")
+        print(f"📁 Искали в: {config_path}")
+        print("📂 Текущая директория:", Path.cwd())
+        print("📂 Директория скрипта:", Path(__file__).parent)
+        # Покажем что есть в корне проекта
+        root_dir = Path(__file__).parent.parent.parent.parent
+        if root_dir.exists():
+            print(f"📂 Содержимое корня проекта {root_dir}:")
+            for item in root_dir.iterdir():
+                print(f"   - {item.name}")
+        return False
     
     try:
         # Читаем конфиг
@@ -37,21 +53,30 @@ def check_config():
         print("✅ Config.yml читается корректно!")
         print(f"📄 Путь к файлу: {config_path}")
         
-        # Проверяем основные секции
-        required_sections = [
-            'morrowind_data_files_dir',
-            'language', 
-            'llm',
-            'event_bus',
-            'rpc'
-        ]
+        # Проверяем ВСЕ обязательные секции
+        required_sections = {
+            'morrowind_data_files_dir': 'Путь к данным Morrowind',
+            'language': 'Язык системы', 
+            'log': 'Настройки логирования',
+            'speech_to_text': 'Распознавание речи (STT)',
+            'text_to_speech': 'Синтез речи (TTS)',
+            'llm': 'LLM провайдеры',
+            'event_bus': 'Шина событий',
+            'rpc': 'RPC сервер',
+            'database': 'База данных',
+            'player_database': 'База данных игрока',
+            'npc_database': 'База данных НПС',
+            'npc_director': 'Режиссёр НПС',
+            'npc_speaker': 'Голос НПС',
+            'scene_instructions': 'Инструкции сцены'
+        }
         
         missing_sections = []
-        for section in required_sections:
+        for section, description in required_sections.items():
             if section in config:
-                print(f"✅ Секция '{section}' найдена")
+                print(f"✅ Секция '{section}' найдена - {description}")
                 
-                # Дополнительные проверки для каждой секции
+                # Дополнительные проверки для важных секций
                 if section == 'morrowind_data_files_dir':
                     data_dir = Path(config[section])
                     if data_dir.exists():
@@ -64,16 +89,18 @@ def check_config():
                         host = config[section]['host']
                         port = config[section]['port']
                         print(f"   📡 Event Bus: {host}:{port}")
-                    else:
-                        print(f"   ⚠️ В секции event_bus отсутствуют host или port")
                 
                 elif section == 'rpc':
                     if 'host' in config[section] and 'port' in config[section]:
                         host = config[section]['host']
                         port = config[section]['port']
                         print(f"   🔌 RPC сервер: {host}:{port}")
+                
+                elif section == 'log':
+                    if all(field in config[section] for field in ['log_to_console', 'log_to_file', 'file_path']):
+                        print(f"   📋 Логирование настроено корректно")
                     else:
-                        print(f"   ⚠️ В секции rpc отсутствуют host или port")
+                        print(f"   ⚠️ В секции log отсутствуют обязательные поля")
                         
             else:
                 print(f"❌ Секция '{section}' отсутствует!")
@@ -87,55 +114,51 @@ def check_config():
         if 'llm' in config and 'system' in config['llm']:
             if 'google' in config['llm']['system']:
                 api_key = config['llm']['system']['google'].get('api_key', '')
-                if api_key and api_key != "ВАШ_GEMINI_API_КЛЮЧ":
+                if api_key and api_key != "ТВОЙ_GEMINI_API_КЛЮЧ_ЗДЕСЬ":
                     print(f"✅ Gemini API ключ: {len(api_key)} символов")
                 else:
                     print("⚠️ Gemini API ключ не настроен!")
-                    print("   🔑 Установите ваш API ключ Google Gemini")
             else:
-                print("⚠️ Конфигурация Google Gemini не найдена в секции llm.system")
-        else:
-            print("⚠️ Секция llm.system не найдена")
+                print("⚠️ Конфигурация Google Gemini не найдена")
         
-        # Проверяем языковые настройки
+        # Проверяем язык
         if 'language' in config:
             lang = config['language']
             print(f"🌍 Язык системы: {lang}")
-            if lang not in ['ru', 'en']:
-                print(f"⚠️ Неизвестный язык: {lang}. Поддерживаются: ru, en")
         
-        # Дополнительные проверки
+        # Дополнительные проверки папок
         print("\n📋 Дополнительные проверки:")
         
-        # Проверяем наличие секции vosk (если есть)
-        if 'vosk' in config:
-            vosk_config = config['vosk']
-            print("✅ Найдена конфигурация VOSK")
-            
-            if 'model_path' in vosk_config:
-                model_path = Path(vosk_config['model_path'])
-                if model_path.exists():
-                    print(f"   ✅ Модель VOSK найдена: {model_path}")
-                else:
-                    print(f"   ⚠️ Модель VOSK не найдена: {model_path}")
+        # Проверяем папки logs и data относительно config.yml
+        root_dir = config_path.parent
+        logs_dir = root_dir / 'logs'
+        data_dir = root_dir / 'data'
         
-        # Проверяем наличие секции audio (если есть)
-        if 'audio' in config:
-            print("✅ Найдена конфигурация аудио")
-            audio_config = config['audio']
-            if 'sample_rate' in audio_config:
-                print(f"   🎵 Частота дискретизации: {audio_config['sample_rate']} Hz")
+        if not logs_dir.exists():
+            logs_dir.mkdir()
+            print("✅ Папка logs создана")
+        else:
+            print("✅ Папка logs найдена")
+            
+        if not data_dir.exists():
+            data_dir.mkdir()
+            print("✅ Папка data создана")
+        else:
+            print("✅ Папка data найдена")
+        
+        # Проверяем scene_instructions.txt
+        scene_file = data_dir / 'scene_instructions.txt'
+        if not scene_file.exists():
+            scene_file.touch()
+            print("✅ Файл scene_instructions.txt создан")
+        else:
+            print("✅ Файл scene_instructions.txt найден")
         
         print("\n🎉 Конфигурация готова к использованию!")
         return True
         
     except yaml.YAMLError as e:
         print(f"❌ Ошибка в YAML синтаксисе: {e}")
-        print("💡 Проверьте отступы и синтаксис YAML")
-        return False
-    except UnicodeDecodeError as e:
-        print(f"❌ Ошибка кодировки файла: {e}")
-        print("💡 Убедитесь, что файл сохранен в UTF-8")
         return False
     except Exception as e:
         print(f"❌ Общая ошибка: {e}")
