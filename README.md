@@ -53,7 +53,7 @@ cd morrowind_ai_openmw
 
 
 6. **Настрой пути в config.yml:**
-# Измени путь к Data Files твоего Morrowind
+### Измени путь к Data Files твоего Morrowind
 morrowind_data_files_dir: "C:/Games/Morrowind/Data Files"
 
 7. **Добавь в openmw.cfg:**
