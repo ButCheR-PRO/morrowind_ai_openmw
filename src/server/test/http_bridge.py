@@ -6,6 +6,9 @@ Morrowind AI HTTP Bridge v1.2
 Мост между OpenMW (файлы) и AI-сервером (HTTP/WebSocket)
 ============================================================================
 """
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 
 import os
 import sys
@@ -13,6 +16,7 @@ import json
 import time
 import asyncio
 import aiohttp
+from aiohttp import web  # ← ЭТОТ ИМПОРТ ОТСУТСТВУЕТ!
 from threading import Thread
 from pathlib import Path
 import logging
