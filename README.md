@@ -158,18 +158,17 @@ pause_threshold: 1.0 # Пауза между фразами
 
 ## 👏 Благодарности
 
-- **Dmitrii Zganiaiko** - За мод "Иммерсивный Морровинд AI" для классического движка
-- **OpenMW Team** - за потрясающий движок
+- **Dmitrii Zganiaiko** - За мод "Иммерсивный Морровинд AI" для классического движка и YouTube канал @roleplaydlyadushi
 - **M[FR] Team** - в частности aL, за прекрасный репак Morrowind FullRest
-- **VOSK Developers** - за бесплатное STT
-- **Google** - за Gemini API
+- **OpenMW Team** - за потрясающий движок
+- **Google** - за бесплатный Gemini API
 - **Project Tamriel** - за расширенный мир
 
 ## 🔗 Полезные ссылки
 
-- [OpenMW Official](https://openmw.org/)
+- [M[FR] Repack](https://www.fullrest.ru/)
 - [OpenMW 0.49.0](https://github.com/openmw/openmw/releases)
 - [Google AI Studio](https://ai.google.dev/)
 - [VOSK Models](https://alphacephei.com/vosk/models)
-- [M[FR] Repack](https://www.fullrest.ru/)
+
 
