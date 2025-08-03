@@ -10,8 +10,6 @@ from pathlib import Path
 import json
 from datetime import datetime
 import os
-import socket
-import struct
 import uuid
 
 def load_config():
@@ -39,7 +37,7 @@ if config:
     HTTP_HOST = config.get("http_bridge", {}).get("host", "127.0.0.1")
     HTTP_PORT = config.get("http_bridge", {}).get("port", 8080)
     
-    # AI-сервер работает через event bus на порту 9090!
+    # AI-сервер работает через event bus
     AI_HOST = config.get("event_bus", {}).get("host", "127.0.0.1") 
     AI_PORT = config.get("event_bus", {}).get("port", 9090)
     AI_BASE_URL = f"tcp://{AI_HOST}:{AI_PORT}"
@@ -47,7 +45,7 @@ else:
     HTTP_HOST = "127.0.0.1"
     HTTP_PORT = 8080
     AI_HOST = "127.0.0.1"
-    AI_PORT = 9090  # Event bus порт!
+    AI_PORT = 9090
     AI_BASE_URL = f"tcp://{AI_HOST}:{AI_PORT}"
 
 # Настройка логирования
@@ -58,7 +56,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class AIEventBusClient:
-    """Клиент для подключения к AI-серверу через event bus"""
+    """Клиент для подключения к AI-серверу через event bus (правильный формат)"""
     
     def __init__(self, host="127.0.0.1", port=9090):
         self.host = host
@@ -66,6 +64,7 @@ class AIEventBusClient:
         self.reader = None
         self.writer = None
         self.connected = False
+        self.event_id = 1  # Счётчик событий
     
     async def connect(self):
         """Подключение к event bus"""
@@ -74,11 +73,37 @@ class AIEventBusClient:
             self.reader, self.writer = await asyncio.open_connection(self.host, self.port)
             self.connected = True
             logger.info("✅ Подключение к AI event bus установлено")
+            
+            # Отправляем первоначальное событие как OpenMW клиент
+            await self.send_init_event()
             return True
         except Exception as e:
             logger.error(f"❌ Ошибка подключения к event bus: {e}")
             self.connected = False
             return False
+    
+    async def send_init_event(self):
+        """Отправка инициализационного события как OpenMW клиент"""
+        try:
+            init_event = {
+                "event_id": self.event_id,
+                "response_to_event_id": None,
+                "data": {
+                    "type": "client_init",  # Правильный тип для инициализации
+                    "client_info": {
+                        "name": "HTTP_Bridge_Client",
+                        "version": "1.0.0",
+                        "platform": "HTTP"
+                    }
+                }
+            }
+            
+            await self._send_raw_message(init_event)
+            self.event_id += 1
+            logger.info("📤 Отправлено инициализационное событие")
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки инициализации: {e}")
     
     async def disconnect(self):
         """Отключение от event bus"""
@@ -88,52 +113,82 @@ class AIEventBusClient:
         self.connected = False
         logger.info("🔌 Отключен от AI event bus")
     
-    async def send_message(self, message_type, data):
-        """Отправка сообщения в event bus"""
+    async def _send_raw_message(self, message):
+        """Отправка сырого сообщения в правильном формате"""
+        if not self.connected:
+            raise Exception("Не подключен к event bus")
+        
+        # Сериализуем в JSON с правильной кодировкой
+        json_data = json.dumps(message, ensure_ascii=False).encode('utf-8')
+        
+        # Добавляем разделитель строк как ожидает сервер
+        data_with_newline = json_data + b'\n'
+        
+        # Отправляем
+        self.writer.write(data_with_newline)
+        await self.writer.drain()
+    
+    async def send_dialogue_request(self, session_id, text, npc_name="НПС"):
+        """Отправка запроса диалога в правильном формате для AI-сервера"""
         if not self.connected:
             if not await self.connect():
                 return None
         
         try:
-            # Формируем сообщение в формате event bus
-            message = {
-                "id": str(uuid.uuid4()),
-                "type": message_type,
-                "timestamp": datetime.now().isoformat(),
-                "data": data
+            # Формируем событие в формате который ожидает AI-сервер
+            dialogue_event = {
+                "event_id": self.event_id,
+                "response_to_event_id": None,
+                "data": {
+                    "type": "npc_dialogue_request",  # Правильный тип события
+                    "session_id": session_id,
+                    "player_message": text,
+                    "npc_name": npc_name,
+                    "context": {
+                        "location": "unknown",
+                        "mood": "neutral",
+                        "language": "ru"
+                    }
+                }
             }
             
-            # Сериализуем в JSON
-            json_data = json.dumps(message, ensure_ascii=False).encode('utf-8')
+            await self._send_raw_message(dialogue_event)
+            self.event_id += 1
             
-            # Отправляем длину сообщения + само сообщение
-            length = struct.pack('!I', len(json_data))
-            self.writer.write(length + json_data)
-            await self.writer.drain()
+            logger.info(f"📤 Отправлен запрос диалога (event_id: {dialogue_event['event_id']})")
             
-            logger.info(f"📤 Отправлено сообщение типа '{message_type}' в event bus")
+            # Ждём ответ с таймаутом
+            try:
+                response = await asyncio.wait_for(self._read_response(), timeout=10.0)
+                logger.info(f"📥 Получен ответ от AI: {response.get('data', {}).get('type', 'unknown')}")
+                return response
+            except asyncio.TimeoutError:
+                logger.warning("⏰ Таймаут ожидания ответа от AI")
+                return None
+                
+        except Exception as e:
+            logger.error(f"❌ Ошибка отправки диалога: {e}")
+            self.connected = False
+            return None
+    
+    async def _read_response(self):
+        """Чтение ответа от AI-сервера"""
+        try:
+            # Читаем строку до переноса
+            response_line = await self.reader.readline()
             
-            # Читаем ответ
-            response_length_data = await self.reader.read(4)
-            if len(response_length_data) < 4:
-                logger.error("❌ Неполный ответ от event bus")
+            if not response_line:
+                logger.error("❌ Пустой ответ от event bus")
                 return None
             
-            response_length = struct.unpack('!I', response_length_data)[0]
-            response_data = await self.reader.read(response_length)
-            
-            if len(response_data) < response_length:
-                logger.error("❌ Неполные данные ответа от event bus")
-                return None
-            
-            response = json.loads(response_data.decode('utf-8'))
-            logger.info(f"📥 Получен ответ от event bus: {response.get('type', 'unknown')}")
+            # Декодируем JSON
+            response_text = response_line.decode('utf-8').strip()
+            response = json.loads(response_text)
             
             return response
             
         except Exception as e:
-            logger.error(f"❌ Ошибка отправки сообщения в event bus: {e}")
-            self.connected = False
+            logger.error(f"❌ Ошибка чтения ответа: {e}")
             return None
 
 # Создаем глобальный клиент event bus
@@ -144,7 +199,6 @@ routes = web.RouteTableDef()
 @routes.get("/health")
 async def health(request):
     """Проверка здоровья HTTP моста"""
-    # Проверяем подключение к event bus
     bus_status = "connected" if ai_client.connected else "disconnected"
     
     return web.json_response({
@@ -162,12 +216,14 @@ async def health(request):
 
 @routes.get("/test")
 async def test(request):
-    """Тестовый эндпоинт"""
+    """Тестовый эндпоинт с проверкой event bus"""
     logger.info("🧪 Тестовый запрос получен")
     
-    # Тестируем подключение к event bus
-    test_result = await ai_client.send_message("ping", {"test": True})
-    bus_working = test_result is not None
+    # Проверяем подключение к event bus
+    if not ai_client.connected:
+        bus_working = await ai_client.connect()
+    else:
+        bus_working = True
     
     return web.json_response({
         "status": "success", 
@@ -188,7 +244,7 @@ async def test(request):
 
 @routes.post("/dialogue")
 async def dialogue(request):
-    """Обработка диалогов с НПС через event bus"""
+    """Обработка диалогов с НПС через event bus (исправленный формат)"""
     try:
         payload = await request.json()
     except Exception as e:
@@ -208,21 +264,22 @@ async def dialogue(request):
 
     logger.info(f"🗣️ Диалог: {npc_name} <- {text}")
 
-    # Отправляем запрос через event bus
+    # Отправляем запрос через event bus в правильном формате
     try:
-        response = await ai_client.send_message("dialogue", {
-            "session_id": session_id,
-            "text": text,
-            "npc_name": npc_name,
-            "context": "morrowind_dialogue",
-            "language": "ru"
-        })
+        response = await ai_client.send_dialogue_request(session_id, text, npc_name)
         
-        if response and response.get("status") == "success":
-            ai_response = response.get("data", {}).get("response", "НПС задумался...")
-            logger.info("✅ Получен ответ от AI через event bus")
+        if response and response.get("data"):
+            response_data = response["data"]
+            
+            # Извлекаем ответ в зависимости от типа события
+            if response_data.get("type") == "npc_dialogue_response":
+                ai_response = response_data.get("npc_message", "НПС задумался...")
+                logger.info("✅ Получен ответ от AI через event bus")
+            else:
+                ai_response = f"Извини, {npc_name} сейчас думает о твоих словах '{text}'."
+                logger.warning(f"⚠️ Неожиданный тип ответа: {response_data.get('type')}")
         else:
-            logger.warning("⚠️ Event bus вернул ошибку или пустой ответ")
+            logger.warning("⚠️ Event bus вернул пустой или неправильный ответ")
             ai_response = f"Извини, {npc_name} сейчас думает о твоих словах '{text}'."
             
     except Exception as e:
@@ -242,46 +299,27 @@ async def dialogue(request):
 
 @routes.post("/voice")
 async def voice(request):
-    """Обработка голосового ввода через event bus"""
+    """Обработка голосового ввода"""
     try:
         if request.content_type == 'application/json':
             payload = await request.json()
             text = payload.get("text", "")
             logger.info(f"🎤 Голос (JSON): {text}")
             
-            # Отправляем через event bus для обработки
-            response = await ai_client.send_message("voice", {
-                "text": text,
-                "format": "json",
-                "language": "ru"
-            })
-            
             return web.json_response({
                 "status": "success",
                 "recognized_text": text,
-                "method": "event_bus_json",
-                "ai_processed": response is not None
+                "method": "json"
             })
             
         elif request.content_type.startswith('audio/'):
             audio_data = await request.read()
             logger.info(f"🎤 Голос (аудио): {len(audio_data)} байт")
             
-            # Отправляем аудио через event bus
-            response = await ai_client.send_message("voice_audio", {
-                "audio_data": audio_data.hex(),  # Кодируем в hex
-                "format": "binary",
-                "language": "ru"
-            })
-            
-            recognized_text = "Распознавание через event bus..."
-            if response and response.get("data"):
-                recognized_text = response["data"].get("text", recognized_text)
-            
             return web.json_response({
                 "status": "success", 
-                "recognized_text": recognized_text,
-                "method": "event_bus_audio",
+                "recognized_text": "Распознавание аудио через VOSK не настроено",
+                "method": "audio",
                 "size": len(audio_data)
             })
         else:
@@ -292,45 +330,6 @@ async def voice(request):
             
     except Exception as e:
         logger.error(f"❌ Ошибка обработки голоса: {e}")
-        return web.json_response(
-            {"status": "error", "message": str(e)}, status=500
-        )
-
-@routes.post("/generate")
-async def generate(request):
-    """Прямая генерация через AI для совместимости"""
-    try:
-        payload = await request.json()
-        prompt = payload.get("prompt", payload.get("text", ""))
-        
-        if not prompt:
-            return web.json_response(
-                {"status": "error", "message": "Отсутствует prompt или text"}, status=400
-            )
-        
-        logger.info(f"🤖 Генерация: {prompt[:50]}...")
-        
-        response = await ai_client.send_message("generate", {
-            "prompt": prompt,
-            "max_tokens": payload.get("max_tokens", 150),
-            "temperature": payload.get("temperature", 0.7),
-            "language": "ru"
-        })
-        
-        if response and response.get("status") == "success":
-            generated_text = response.get("data", {}).get("text", "Генерация не удалась...")
-        else:
-            generated_text = f"Ответ на '{prompt[:30]}...' обрабатывается..."
-        
-        return web.json_response({
-            "status": "success",
-            "generated_text": generated_text,
-            "method": "event_bus",
-            "timestamp": datetime.now().isoformat()
-        })
-        
-    except Exception as e:
-        logger.error(f"❌ Ошибка генерации: {e}")
         return web.json_response(
             {"status": "error", "message": str(e)}, status=500
         )
@@ -365,9 +364,8 @@ def main():
     logger.info(f"❤️ Здоровье: http://{HTTP_HOST}:{HTTP_PORT}/health")
     logger.info(f"📞 Диалоги: POST http://{HTTP_HOST}:{HTTP_PORT}/dialogue")
     logger.info(f"🎤 Голос: POST http://{HTTP_HOST}:{HTTP_PORT}/voice")
-    logger.info(f"🤖 Генерация: POST http://{HTTP_HOST}:{HTTP_PORT}/generate")
     
-    # Запускаем сервер на правильном порту 8080!
+    # Запускаем сервер
     web.run_app(app, host=HTTP_HOST, port=HTTP_PORT)
 
 if __name__ == "__main__":
