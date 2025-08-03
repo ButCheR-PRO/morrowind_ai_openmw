@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 ============================================================================
-Morrowind AI HTTP Bridge v1.0
+Morrowind AI HTTP Bridge v1.2
 Мост между OpenMW (файлы) и AI-сервером (HTTP/WebSocket)
 ============================================================================
 """
@@ -18,12 +18,27 @@ from pathlib import Path
 import logging
 from datetime import datetime
 
-# Настройка логирования
+# ИСПРАВЛЯЕМ ПРОБЛЕМУ С ЛОГАМИ - правильные пути
+def ensure_log_directory():
+    # Идём в корень проекта и создаём logs
+    current_dir = Path(__file__).parent  # test/
+    server_dir = current_dir.parent      # server/
+    src_dir = server_dir.parent          # src/
+    root_dir = src_dir.parent            # morrowind_ai_openmw/
+    log_dir = root_dir / 'logs'
+    
+    log_dir.mkdir(parents=True, exist_ok=True)
+    return log_dir
+
+# Создаём папку логов перед настройкой логирования
+log_directory = ensure_log_directory()
+
+# Настройка логирования с правильными путями
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
-        logging.FileHandler('../../logs/http_bridge.log', encoding='utf-8'),
+        logging.FileHandler(log_directory / 'http_bridge.log', encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -35,12 +50,13 @@ class MorrowindAIBridge:
             'ai_server_host': 'localhost',
             'ai_server_port': 9090,
             'http_server_port': 8080,
-            'temp_dir': '../../Data Files/ai_temp/',
-            'request_file': '../../Data Files/ai_temp/ai_request.json',
-            'response_file': '../../Data Files/ai_temp/ai_response.json',
-            'signal_file': '../../Data Files/ai_temp/ai_signal.txt',
-            'check_interval': 0.5,  # секунды
-            'request_timeout': 30,   # секунды
+            # Пути к твоей игре
+            'temp_dir': 'f:/Games/MorrowindFullrest/game/Data Files/ai_temp/',
+            'request_file': 'f:/Games/MorrowindFullrest/game/Data Files/ai_temp/ai_request.json',
+            'response_file': 'f:/Games/MorrowindFullrest/game/Data Files/ai_temp/ai_response.json',
+            'signal_file': 'f:/Games/MorrowindFullrest/game/Data Files/ai_temp/ai_signal.txt',
+            'check_interval': 0.5,
+            'request_timeout': 30,
         }
         
         self.is_running = False
@@ -59,6 +75,7 @@ class MorrowindAIBridge:
         """Запуск моста"""
         logger.info("=" * 60)
         logger.info("🌉 MORROWIND AI BRIDGE ЗАПУСКАЕТСЯ...")
+        logger.info(f"📁 Логи сохраняются в: {log_directory}")
         logger.info("=" * 60)
         
         self.is_running = True
@@ -85,6 +102,7 @@ class MorrowindAIBridge:
     def file_monitor_loop(self):
         """Основной цикл мониторинга файлов от OpenMW"""
         logger.info("👁️ Запущен мониторинг файлов от OpenMW...")
+        logger.info(f"📂 Отслеживаем: {self.config['temp_dir']}")
         
         while self.is_running:
             try:
@@ -139,7 +157,6 @@ class MorrowindAIBridge:
             
         except Exception as e:
             logger.error(f"Ошибка обработки запроса: {e}")
-            # Удаляем сигнальный файл в случае ошибки
             if os.path.exists(signal_file):
                 os.remove(signal_file)
                 
@@ -149,7 +166,6 @@ class MorrowindAIBridge:
         
         try:
             async with aiohttp.ClientSession() as session:
-                # Формируем payload для AI-сервера
                 payload = {
                     'npc_name': request_data.get('npc_name', ''),
                     'message': request_data.get('message', ''),
@@ -233,12 +249,10 @@ class MorrowindAIBridge:
         
         app = web.Application()
         
-        # Маршруты
         app.router.add_get('/', self.handle_status)
         app.router.add_post('/api/dialogue', self.handle_dialogue_request)
         app.router.add_get('/api/status', self.handle_status)
         
-        # Запуск сервера
         runner = web.AppRunner(app)
         await runner.setup()
         
@@ -251,7 +265,6 @@ class MorrowindAIBridge:
         logger.info(f"   - POST http://localhost:{self.config['http_server_port']}/api/dialogue")
         logger.info(f"   - GET  http://localhost:{self.config['http_server_port']}/api/status")
         
-        # Ждем завершения
         try:
             while self.is_running:
                 await asyncio.sleep(1)
@@ -262,7 +275,7 @@ class MorrowindAIBridge:
         """Обработчик статуса"""
         status = {
             'service': 'Morrowind AI Bridge',
-            'version': '1.0',
+            'version': '1.2',
             'status': 'running' if self.is_running else 'stopped',
             'uptime': int(time.time()),
             'processed_requests': len(self.processed_requests),
@@ -275,18 +288,12 @@ class MorrowindAIBridge:
         """Обработчик внешних запросов диалогов"""
         try:
             data = await request.json()
-            
-            # Перенаправляем на AI-сервер
             ai_response = await self.forward_to_ai_server(data)
-            
             return web.json_response(ai_response)
             
         except Exception as e:
             logger.error(f"Ошибка обработки внешнего запроса: {e}")
-            return web.json_response(
-                {'error': str(e)}, 
-                status=500
-            )
+            return web.json_response({'error': str(e)}, status=500)
             
     async def forward_to_ai_server(self, data):
         """Перенаправляет запрос на AI-сервер"""
@@ -298,7 +305,7 @@ class MorrowindAIBridge:
 
 def main():
     """Главная функция"""
-    print("🌉 Morrowind AI Bridge v1.0")
+    print("🌉 Morrowind AI Bridge v1.2")
     print("=" * 40)
     
     bridge = MorrowindAIBridge()

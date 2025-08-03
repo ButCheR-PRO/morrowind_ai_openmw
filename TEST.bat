@@ -1,7 +1,7 @@
 @echo off
 chcp 1251 > nul
 echo ============================================================================
-echo MORROWIND AI MOD - ПОЛНАЯ ДИАГНОСТИКА СИСТЕМЫ v1.0
+echo MORROWIND AI MOD - ПОЛНАЯ ДИАГНОСТИКА СИСТЕМЫ v1.4
 echo ============================================================================
 echo.
 
@@ -22,7 +22,7 @@ echo.
 
 echo [2/10] Проверяем структуру проекта...
 if not exist "config.yml" (
-    echo [ОШИБКА] config.yml не найден
+    echo [ОШИБКА] config.yml не найден в корне
     set /a ERROR_COUNT+=1
 ) else (
     echo [OK] Конфигурационный файл найден
@@ -49,30 +49,109 @@ if not exist "src\server\test\http_bridge.py" (
     echo [OK] HTTP мост найден
 )
 
-if not exist "src\Data Files\scripts\morrowind_ai.lua" (
-    echo [ОШИБКА] Lua скрипт не найден
+REM ПРАВИЛЬНАЯ ПРОВЕРКА - файлы из твоего репо
+echo [ДОПОЛНИТЕЛЬНО] Проверяем Lua скрипты в репо:
+
+if not exist "src\Data Files\morrowind_ai.omwscripts" (
+    echo [ОШИБКА] morrowind_ai.omwscripts не найден в репо
     set /a ERROR_COUNT+=1
 ) else (
-    echo [OK] Lua скрипт найден
+    echo [OK] morrowind_ai.omwscripts найден в репо
 )
 
-if not exist "morrowind_ai.omwscripts" (
-    echo [ОШИБКА] Файл регистрации мода не найден
+if not exist "src\Data Files\scripts\morrowind_ai.lua" (
+    echo [ОШИБКА] scripts/morrowind_ai.lua не найден в репо
     set /a ERROR_COUNT+=1
 ) else (
-    echo [OK] Файл регистрации мода найден
+    echo [OK] scripts/morrowind_ai.lua найден в репо
+)
+
+if not exist "src\Data Files\scripts\morrowind_ai\init.lua" (
+    echo [ОШИБКА] scripts/morrowind_ai/init.lua не найден в репо
+    set /a ERROR_COUNT+=1
+) else (
+    echo [OK] scripts/morrowind_ai/init.lua найден в репо
+)
+
+if not exist "src\Data Files\scripts\morrowind_ai\player.lua" (
+    echo [ОШИБКА] scripts/morrowind_ai/player.lua не найден в репо
+    set /a ERROR_COUNT+=1
+) else (
+    echo [OK] scripts/morrowind_ai/player.lua найден в репо
+)
+
+if not exist "src\Data Files\scripts\morrowind_ai\console_commands.lua" (
+    echo [ОШИБКА] scripts/morrowind_ai/console_commands.lua не найден в репо
+    set /a ERROR_COUNT+=1
+) else (
+    echo [OK] scripts/morrowind_ai/console_commands.lua найден в репо
+)
+
+if not exist "src\Data Files\scripts\morrowind_ai\config.lua" (
+    echo [ОШИБКА] scripts/morrowind_ai/config.lua не найден в репо
+    set /a ERROR_COUNT+=1
+) else (
+    echo [OK] scripts/morrowind_ai/config.lua найден в репо
+)
+
+echo.
+echo [ДОПОЛНИТЕЛЬНО] Проверяем установку в игру:
+
+if exist "f:\Games\MorrowindFullrest\game\Data Files\morrowind_ai.omwscripts" (
+    echo [OK] morrowind_ai.omwscripts установлен в игру
+) else (
+    echo [ПРЕДУПРЕЖДЕНИЕ] morrowind_ai.omwscripts НЕ УСТАНОВЛЕН в игру
+    echo                   Запустите COPY_TO_GAME.bat
+)
+
+if exist "f:\Games\MorrowindFullrest\game\Data Files\scripts\morrowind_ai" (
+    echo [OK] Папка скриптов AI создана в игре
+    
+    if exist "f:\Games\MorrowindFullrest\game\Data Files\scripts\morrowind_ai\init.lua" (
+        echo [OK] init.lua установлен в игру
+    ) else (
+        echo [ПРЕДУПРЕЖДЕНИЕ] init.lua НЕ УСТАНОВЛЕН в игру
+    )
+    
+    if exist "f:\Games\MorrowindFullrest\game\Data Files\scripts\morrowind_ai\player.lua" (
+        echo [OK] player.lua установлен в игру
+    ) else (
+        echo [ПРЕДУПРЕЖДЕНИЕ] player.lua НЕ УСТАНОВЛЕН в игру
+    )
+    
+    if exist "f:\Games\MorrowindFullrest\game\Data Files\scripts\morrowind_ai\console_commands.lua" (
+        echo [OK] console_commands.lua установлен в игру
+    ) else (
+        echo [ПРЕДУПРЕЖДЕНИЕ] console_commands.lua НЕ УСТАНОВЛЕН в игру
+    )
+    
+) else (
+    echo [ПРЕДУПРЕЖДЕНИЕ] Папка скриптов AI НЕ НАЙДЕНА в игре
+    echo                   Запустите COPY_TO_GAME.bat
 )
 echo.
 
 echo [3/10] Проверяем директории...
-if not exist "logs" mkdir logs
-echo [OK] Директория logs готова
+if not exist "logs" (
+    mkdir logs
+    echo [ИСПРАВЛЕНО] Создана директория logs
+) else (
+    echo [OK] Директория logs готова
+)
 
-if not exist "data" mkdir data  
-echo [OK] Директория data готова
+if not exist "data" (
+    mkdir data
+    echo [ИСПРАВЛЕНО] Создана директория data
+) else (
+    echo [OK] Директория data готова
+)
 
-if not exist "Data Files\ai_temp" mkdir "Data Files\ai_temp"
-echo [OK] Директория ai_temp готова
+if not exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp" (
+    mkdir "f:\Games\MorrowindFullrest\game\Data Files\ai_temp"
+    echo [ИСПРАВЛЕНО] Создана директория ai_temp в игре
+) else (
+    echo [OK] Директория ai_temp готова
+)
 echo.
 
 echo [4/10] Тестируем виртуальное окружение...
@@ -100,10 +179,17 @@ if errorlevel 1 (
         echo [OK] google-generativeai установлен
     )
     
+    pip show pathvalidate >nul 2>&1
+    if errorlevel 1 (
+        echo [ОШИБКА] pathvalidate не установлен - КРИТИЧЕСКИЙ ПАКЕТ!
+        set /a ERROR_COUNT+=1
+    ) else (
+        echo [OK] pathvalidate установлен
+    )
+    
     pip show vosk >nul 2>&1
     if errorlevel 1 (
-        echo [ОШИБКА] vosk не установлен
-        set /a ERROR_COUNT+=1
+        echo [ПРЕДУПРЕЖДЕНИЕ] vosk не установлен
     ) else (
         echo [OK] vosk установлен
     )
@@ -125,7 +211,7 @@ if exist "config.yml" (
 echo.
 
 echo [7/10] Тестируем синтаксис Python скриптов...
-python -m py_compile src\server\main.py >nul 2>&1
+python -c "import py_compile; py_compile.compile('src/server/main.py', doraise=True)" >nul 2>&1
 if errorlevel 1 (
     echo [ОШИБКА] Синтаксическая ошибка в main.py
     set /a ERROR_COUNT+=1
@@ -134,7 +220,7 @@ if errorlevel 1 (
 )
 
 if exist "src\server\test\http_bridge.py" (
-    python -m py_compile src\server\test\http_bridge.py >nul 2>&1
+    python -c "import py_compile; py_compile.compile('src/server/test/http_bridge.py', doraise=True)" >nul 2>&1
     if errorlevel 1 (
         echo [ОШИБКА] Синтаксическая ошибка в http_bridge.py
         set /a ERROR_COUNT+=1
@@ -161,9 +247,9 @@ if not errorlevel 1 (
 echo.
 
 echo [9/10] Тестируем временные файлы...
-echo test > "Data Files\ai_temp\test.tmp"
-if exist "Data Files\ai_temp\test.tmp" (
-    del "Data Files\ai_temp\test.tmp"
+echo test > "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\test.tmp"
+if exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\test.tmp" (
+    del "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\test.tmp"
     echo [OK] Запись в ai_temp работает
 ) else (
     echo [ОШИБКА] Не удается записать в ai_temp
@@ -172,12 +258,10 @@ if exist "Data Files\ai_temp\test.tmp" (
 echo.
 
 echo [10/10] Проверяем OpenMW совместимость...
-if exist "C:\Program Files\OpenMW\openmw.exe" (
-    echo [OK] OpenMW найден в стандартной папке
-) else if exist "openmw.exe" (
-    echo [OK] OpenMW найден в текущей папке  
+if exist "f:\Games\MorrowindFullrest\game\OpenMW 0.49.0\openmw.exe" (
+    echo [OK] OpenMW найден по указанному пути
 ) else (
-    echo [ПРЕДУПРЕЖДЕНИЕ] OpenMW не найден в стандартных местах
+    echo [ПРЕДУПРЕЖДЕНИЕ] OpenMW не найден по пути f:\Games\MorrowindFullrest\game\OpenMW 0.49.0\openmw.exe
 )
 echo.
 
@@ -196,6 +280,7 @@ if %ERROR_COUNT%==0 (
     echo РЕКОМЕНДАЦИИ:
     if not exist "venv" echo - Запустите INSTALL.bat для установки зависимостей
     if not exist "config.yml" echo - Создайте config.yml с API ключами
+    if not exist "f:\Games\MorrowindFullrest\game\Data Files\morrowind_ai.omwscripts" echo - Запустите COPY_TO_GAME.bat для установки файлов в игру
     if %ERROR_COUNT% gtr 5 echo - Переустановите проект с нуля
 )
 

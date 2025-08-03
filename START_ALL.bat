@@ -4,7 +4,7 @@ chcp 1251 > nul
 :menu
 cls
 echo ============================================================================
-echo MORROWIND AI MOD - УПРАВЛЕНИЕ СИСТЕМОЙ v1.0
+echo MORROWIND AI MOD - УПРАВЛЕНИЕ СИСТЕМОЙ v1.2
 echo ============================================================================
 echo.
 echo Выберите действие:
@@ -37,7 +37,7 @@ echo.
 
 cd /d "%~dp0"
 
-echo [1/4] Проверяем готовность системы...
+echo [1/5] Проверяем готовность системы...
 if not exist "venv" (
     echo ОШИБКА: Виртуальное окружение не найдено
     echo Запустите сначала INSTALL.bat
@@ -46,29 +46,34 @@ if not exist "venv" (
 )
 
 if not exist "config.yml" (
-    echo ОШИБКА: config.yml не найден  
+    echo ОШИБКА: config.yml не найден в корне проекта
     echo Создайте конфигурационный файл
     pause
     goto menu
 )
 
-echo [2/4] Останавливаем старые процессы...
+echo [2/5] Создаем необходимые папки...
+if not exist "logs" mkdir logs
+if not exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp" mkdir "f:\Games\MorrowindFullrest\game\Data Files\ai_temp"
+
+echo [3/5] Останавливаем старые процессы...
 taskkill /f /im python.exe 2>nul >nul
 timeout /t 2 /nobreak >nul
 
-echo [3/4] Запускаем AI сервер (порт 9090)...
-start "AI Server" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && cd src\server && python main.py"
-timeout /t 3 /nobreak >nul
+echo [4/5] Запускаем AI сервер (порт 9090) с конфигом...
+REM ИСПРАВЛЯЕМ ЗАПУСК - указываем путь к конфигу в корне
+start "AI Server" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && cd src\server && python main.py --config ../../config.yml"
+timeout /t 5 /nobreak >nul
 
-echo [4/4] Запускаем HTTP мост (порт 8080)...  
+echo [5/5] Запускаем HTTP мост (порт 8080)...  
 start "HTTP Bridge" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && cd src\server\test && python http_bridge.py"
 
 echo.
 echo ВСЕ СЕРВИСЫ ЗАПУЩЕНЫ!
 echo.
 echo Откроется 2 окна:
-echo - AI Server (порт 9090) 
-echo - HTTP Bridge (порт 8080)
+echo - AI Server (порт 9090) с конфигом из корня 
+echo - HTTP Bridge (порт 8080) с логами в корне/logs
 echo.
 echo Теперь можете запускать OpenMW с модом
 echo.
@@ -97,9 +102,9 @@ taskkill /f /fi "WINDOWTITLE:HTTP Bridge*" 2>nul >nul
 
 echo.
 echo Очищаем временные файлы...
-if exist "Data Files\ai_temp\*.tmp" del /q "Data Files\ai_temp\*.tmp" 2>nul
-if exist "Data Files\ai_temp\*.json" del /q "Data Files\ai_temp\*.json" 2>nul  
-if exist "Data Files\ai_temp\*.txt" del /q "Data Files\ai_temp\*.txt" 2>nul
+if exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.tmp" del /q "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.tmp" 2>nul
+if exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.json" del /q "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.json" 2>nul  
+if exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.txt" del /q "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.txt" 2>nul
 
 echo.
 echo ВСЕ СЕРВИСЫ ОСТАНОВЛЕНЫ!
@@ -163,10 +168,18 @@ if errorlevel 1 (
 
 echo.
 echo Проверяем временные файлы...
-if exist "Data Files\ai_temp\ai_signal.txt" (
+if exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\ai_signal.txt" (
     echo [ФАЙЛЫ] Есть активные запросы от OpenMW
 ) else (
     echo [ФАЙЛЫ] Нет активных запросов
+)
+
+echo.
+echo Проверяем логи...
+if exist "logs\http_bridge.log" (
+    echo [ЛОГИ] HTTP Bridge логи найдены
+) else (
+    echo [ЛОГИ] HTTP Bridge логи не найдены
 )
 
 echo.
@@ -190,8 +203,8 @@ if exist "logs\*.log" (
 
 echo.  
 echo Очищаем временные файлы...
-if exist "Data Files\ai_temp\*.*" (
-    del /q "Data Files\ai_temp\*.*"  
+if exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.*" (
+    del /q "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.*"  
     echo Временные файлы очищены
 ) else (
     echo Временные файлы уже очищены
@@ -233,10 +246,12 @@ pause
 goto menu
 
 :start_services_silent
+if not exist "logs" mkdir logs
+if not exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp" mkdir "f:\Games\MorrowindFullrest\game\Data Files\ai_temp"
 taskkill /f /im python.exe 2>nul >nul
 timeout /t 2 /nobreak >nul
-start "AI Server" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && cd src\server && python main.py"
-timeout /t 3 /nobreak >nul
+start "AI Server" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && cd src\server && python main.py --config ../../config.yml"
+timeout /t 5 /nobreak >nul
 start "HTTP Bridge" cmd /k "cd /d "%~dp0" && call venv\Scripts\activate.bat && cd src\server\test && python http_bridge.py"
 goto :eof
 
@@ -244,9 +259,9 @@ goto :eof
 taskkill /f /im python.exe 2>nul >nul
 taskkill /f /fi "WINDOWTITLE:AI Server*" 2>nul >nul  
 taskkill /f /fi "WINDOWTITLE:HTTP Bridge*" 2>nul >nul
-if exist "Data Files\ai_temp\*.tmp" del /q "Data Files\ai_temp\*.tmp" 2>nul
-if exist "Data Files\ai_temp\*.json" del /q "Data Files\ai_temp\*.json" 2>nul
-if exist "Data Files\ai_temp\*.txt" del /q "Data Files\ai_temp\*.txt" 2>nul
+if exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.tmp" del /q "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.tmp" 2>nul
+if exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.json" del /q "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.json" 2>nul
+if exist "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.txt" del /q "f:\Games\MorrowindFullrest\game\Data Files\ai_temp\*.txt" 2>nul
 goto :eof
 
 :exit
