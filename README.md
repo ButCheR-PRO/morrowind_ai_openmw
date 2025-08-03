@@ -58,10 +58,10 @@ morrowind_data_files_dir: "C:/Games/Morrowind/Data Files"
 
 7. **Добавь в openmw.cfg:**
 Открой свой openmw.cfg (обычно в Documents\My Games\OpenMW\) и добавь:
-# Путь к AI скриптам
+## Путь к AI скриптам
 data="путь_к_серверу/morrowind_ai_openmw/src/Data Files"
 
-# И в конце файла добавь загрузку AI мода
+### И в конце файла добавь загрузку AI мода
 content=morrowind_ai.omwscripts
 
 
