@@ -1,37 +1,31 @@
-# === БАЗОВЫЕ ЗАВИСИМОСТИ ИЗ ОРИГИНАЛА ===
-setuptools==69.0.3
-aiohttp==3.9.1
-aiofiles==23.2.1
-requests==2.31.0
-PyYAML==6.0.1
-pydantic==2.5.3
-python-dotenv==1.0.0
-python-multipart==0.0.6
+# === БАЗОВЫЕ ЗАВИСИМОСТИ ===
+setuptools>=69.0.0
+aiohttp>=3.9.0
+aiofiles>=23.2.0
+requests>=2.31.0
+PyYAML>=6.0.0
+pydantic>=2.5.0
+python-dotenv>=1.0.0
 
 # === STT (РАСПОЗНАВАНИЕ РЕЧИ) ===
-vosk==0.3.45
-openai-whisper==20231117
-azure-cognitiveservices-speech==1.26.0
-sounddevice==0.4.6
-
-# === TTS (СИНТЕЗ РЕЧИ) ===
-mutagen==1.46.0
-elevenlabs==0.2.26
+vosk>=0.3.45
+sounddevice>=0.4.6
 
 # === LLM ПРОВАЙДЕРЫ ===
-openai==1.6.1
-google-generativeai==0.3.2
-anthropic==0.8.1
+google-generativeai>=0.3.0
+anthropic>=0.8.0
+openai>=1.0.0
 
 # === WINDOWS API ПОДДЕРЖКА ===
-pywin32==306
-pynput==1.7.6
+pywin32>=306
+pynput>=1.7.0
 
 # === СИСТЕМНЫЕ УТИЛИТЫ ===
-colorlog==6.7.0
-pathvalidate==3.2.0
-numpy==1.25.2
+colorlog>=6.7.0
+pathvalidate>=3.0.0
+numpy>=1.25.0
 
-# === HTTP BRIDGE ЗАВИСИМОСТИ ===
-uvloop==0.19.0
-asyncio-mqtt==0.16.1
+# === ОПЦИОНАЛЬНЫЕ ===
+azure-cognitiveservices-speech>=1.26.0
+elevenlabs>=0.2.0
+mutagen>=1.46.0

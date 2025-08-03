@@ -1,44 +1,37 @@
 @echo off
 chcp 1251 > nul
 echo ================================
-echo    ЗАПУСК MORROWIND AI SERVER
+echo       AI-СЕРВЕР
 echo ================================
 echo.
 
-REM Проверяем наличие виртуального окружения
+REM Проверяем наличие виртуального окружения в корне
 if not exist "venv\Scripts\activate.bat" (
-    echo ОШИБКА: Виртуальное окружение не найдено!
-    echo Сначала запусти INSTALL.bat
+    echo X Виртуальное окружение не найдено!
+    echo Сначала запустите INSTALL.bat
     pause
     exit /b 1
 )
 
-REM Проверяем наличие конфига
-if not exist "config.yml" (
-    echo ОШИБКА: Файл config.yml не найден!
-    echo Создай конфиг на основе config.yml.example
-    pause
-    exit /b 1
-)
-
-echo Активируем виртуальное окружение...
+REM Активируем виртуальное окружение
+echo Активирую виртуальное окружение...
 call venv\Scripts\activate.bat
 
-echo Проверяем зависимости...
-python -c "import socket, yaml, requests" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo ОШИБКА: Не все зависимости установлены!
-    echo Запусти INSTALL.bat ещё раз
+REM ПЕРЕХОДИМ В ПАПКУ src\server ГДЕ ЛЕЖИТ main.py
+cd /d "%~dp0\src\server"
+echo Перешли в папку: %CD%
+
+REM Проверяем что main.py на месте
+if not exist "main.py" (
+    echo X main.py не найден в %CD%!
     pause
     exit /b 1
 )
 
-echo Запускаем сервер...
-echo Сервер будет доступен на порту 18080
-echo Для остановки нажми Ctrl+C
+REM Запускаем AI-сервер
+echo Запускаю AI-сервер main.py на порту 18080...
+echo Для остановки нажмите Ctrl+C
 echo.
-python src/server/main.py --config config.yml
+python main.py
 
-echo.
-echo Сервер остановлен.
 pause
