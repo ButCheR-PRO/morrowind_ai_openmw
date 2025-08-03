@@ -6,15 +6,19 @@ requests>=2.31.0
 PyYAML>=6.0.0
 pydantic>=2.5.0
 python-dotenv>=1.0.0
+python-multipart>=0.0.6
 
 # === STT (РАСПОЗНАВАНИЕ РЕЧИ) ===
 vosk>=0.3.45
+openai-whisper>=20231117
 sounddevice>=0.4.6
+azure-cognitiveservices-speech>=1.26.0
 
-# === LLM ПРОВАЙДЕРЫ ===
+# === LLM ПРОВАЙДЕРЫ (ВСЕ!) ===
 google-generativeai>=0.3.0
 anthropic>=0.8.0
 openai>=1.0.0
+mistralai>=0.1.0
 
 # === WINDOWS API ПОДДЕРЖКА ===
 pywin32>=306
@@ -25,7 +29,9 @@ colorlog>=6.7.0
 pathvalidate>=3.0.0
 numpy>=1.25.0
 
-# === ОПЦИОНАЛЬНЫЕ ===
-azure-cognitiveservices-speech>=1.26.0
+# === TTS (СИНТЕЗ РЕЧИ) ===
 elevenlabs>=0.2.0
 mutagen>=1.46.0
+
+# === ДОПОЛНИТЕЛЬНЫЕ ===
+asyncio-mqtt>=0.16.1

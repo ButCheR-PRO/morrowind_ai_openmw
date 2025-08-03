@@ -26,13 +26,19 @@ if not exist "src\server\test\http_bridge.py" (
     exit /b 1
 )
 
+if not exist "config.yml" (
+    echo X config.yml не найден в корне!
+    pause
+    exit /b 1
+)
+
 echo + Все файлы найдены
 echo + Виртуальное окружение готово
 echo.
 
-REM Запуск AI-сервера в отдельном окне с правильными путями
-echo Запускаю AI-сервер...
-start "AI Server" cmd /k "chcp 1251 > nul && cd /d %~dp0 && call venv\Scripts\activate.bat && cd src\server && python main.py"
+REM Запуск AI-сервера в отдельном окне с правильными путями И config.yml
+echo Запускаю AI-сервер с config.yml...
+start "AI Server" cmd /k "chcp 1251 > nul && cd /d %~dp0 && call venv\Scripts\activate.bat && cd src\server && python main.py --config ..\..\config.yml"
 
 REM Ждем 10 секунд чтобы AI-сервер успел запуститься
 echo Жду запуска AI-сервера (10 сек)...

@@ -28,10 +28,17 @@ if not exist "main.py" (
     exit /b 1
 )
 
-REM Запускаем AI-сервер
-echo Запускаю AI-сервер main.py на порту 18080...
+REM Проверяем что config.yml есть в корне (на 2 уровня выше)
+if not exist "..\..\config.yml" (
+    echo X config.yml не найден в корне репозитория!
+    pause
+    exit /b 1
+)
+
+REM Запускаем AI-сервер с указанием пути к config.yml
+echo Запускаю AI-сервер main.py с config.yml...
 echo Для остановки нажмите Ctrl+C
 echo.
-python main.py
+python main.py --config ..\..\config.yml
 
 pause
