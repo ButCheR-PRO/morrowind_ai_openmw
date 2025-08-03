@@ -177,4 +177,4 @@ pause_threshold: 1.0 # Пауза между фразами
 - [La2ButCheR](http://La2ButCheR.com)
 - [Наш Discord](https://discord.gg/KCnhtJu)
 
-## Разработчик: [ButCheR](https://vk.com/la2butcher)
+## Разработчик: [ButCheR](https://vk.com/la2butcher) ©
