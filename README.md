@@ -174,5 +174,7 @@ pause_threshold: 1.0 # Пауза между фразами
 - [OpenMW 0.49.0](https://github.com/openmw/openmw/releases)
 - [Google AI Studio](https://ai.google.dev/)
 - [VOSK Models](https://alphacephei.com/vosk/models)
+- [La2ButCheR](http://La2ButCheR.com)
+- [Наш Discord](https://discord.gg/KCnhtJu)
 
-
+## Разработчик: [ButCheR](https://vk.com/la2butcher)
