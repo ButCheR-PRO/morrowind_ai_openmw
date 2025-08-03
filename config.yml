@@ -50,7 +50,7 @@ llm:
   system:
     type: "google"
     google:
-      api_key: "AIzaSyA17aNSyKb0qxvs9x5YBvbE_3v7xpkEJaY"
+      api_key: "ZIzaSyA87aNSyKb0qxvs9x5YBvbE_5v7xpkXJaY"
       model: "gemini-1.5-flash"
       model_name: "gemini-1.5-flash"
     anthropic:
