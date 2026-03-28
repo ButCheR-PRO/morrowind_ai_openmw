@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ether_ray_rms.py
+protocol_ether_ray_rms.py
 
 Proof-of-concept ray tracer for GRIN toroidal lens profile n(r) = 1 + A*(cosh(r/R)-1)
 Computes RMS angular spread of incoming rays at observer radius and fits a best-fit
@@ -10,7 +10,7 @@ Requirements:
     numpy, scipy, matplotlib
 
 Run:
-    python ether_ray_rms.py
+    python protocol_ether_ray_rms.py
 
 Adjust parameters in the CONFIGURATION section as needed.
 """

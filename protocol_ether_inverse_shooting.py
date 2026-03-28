@@ -1,7 +1,7 @@
-# ether_inverse_shooting.py
+# protocol_ether_inverse_shooting.py
 # Proof-of-concept GRIN ray tracer + inverse shooting optimizer
 # Required: python -m pip install numpy scipy matplotlib
-# Usage: python ether_inverse_shooting.py
+# Usage: python protocol_ether_inverse_shooting.py
 import numpy as np
 from math import atan2
 from scipy.integrate import solve_ivp
