@@ -1,89 +1,111 @@
+
+# -*- coding: utf-8 -*-
+# ether_graph2.py
+# Аппаратная визуализация Статики Пространства (Архитектура Террариума 0³)
+# Математическое доказательство формулы 360°: 15 связей * 24 знаковых состояния
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 def slerp(p0, p1, t, normal=None):
+    """
+    Сферическая линейная интерполяция (Slerp).
+    Эфир не движется по прямым углам. В замкнутом объеме энергия перетекает 
+    между полюсами строго по геодезическим дугам (кратчайшим путям на сфере).
+    """
     dot_product = np.clip(np.dot(p0, p1), -1.0, 1.0)
     omega = np.arccos(dot_product)
     
     if omega == 0:
         return np.array([p0] * len(t))
         
-    # Идеальная геодезическая обмотка для полюсов (через центр)
+    # Обработка антиподов (Сквозные оси / Нуль-транзит)
+    # Когда вектор бьет ровно на противоположную сторону сферы (180 градусов / pi).
+    # Это три главные диагонали (X, Y, Z), пересекающие нулевую точку (0;0;0) - позицию Наблюдателя.
     if np.abs(omega - np.pi) < 1e-5:
         if normal is None:
-            # Если не задана нормаль, находим любую ортогональную ось
+            # Находим ортогональную ось, чтобы дуга красиво обогнула "экватор", 
+            # не ломаясь в центре (избегаем аппаратного NaN сбоя).
             if p0[0] == 0: normal = np.array([1, 0, 0])
             elif p0[1] == 0: normal = np.array([0, 1, 0])
             else: normal = np.array([0, 0, 1])
         u = p0
         v = np.cross(normal, p0)
         v = v / np.linalg.norm(v)
-        arc = u * np.cos(t * np.pi)[:, None] + v * np.sin(t * np.pi)[:, None]
-        return arc
+        return u * np.cos(t * np.pi)[:, None] + v * np.sin(t * np.pi)[:, None]
     
+    # Стандартный расчет траектории эфирной дуги
     so = np.sin(omega)
-    arc = np.outer(np.sin((1.0 - t) * omega) / so, p0) + np.outer(np.sin(t * omega) / so, p1)
-    return arc
+    return np.outer(np.sin((1.0 - t) * omega) / so, p0) + np.outer(np.sin(t * omega) / so, p1)
 
-fig = plt.figure(figsize=(12, 12), facecolor='#050505')
+# Создаем пустой "Космос" для отрисовки нашего Террариума
+fig = plt.figure(figsize=(10, 10), facecolor='#050505')
 ax = fig.add_subplot(111, projection='3d')
 ax.set_facecolor('#050505')
-ax.grid(False) # Убираем матричную сетку, оставляем только Эфир
-ax.set_axis_off()
+ax.axis('off')  # Отключаем декартову сетку матплотлиба, оставляем только чистый эфир
 
-# Эфирная мембрана (Сфера)
-u_grid, v_grid = np.mgrid[0:2*np.pi:40j, 0:np.pi:20j]
-x_grid = np.cos(u_grid)*np.sin(v_grid)
-y_grid = np.sin(u_grid)*np.sin(v_grid)
-z_grid = np.cos(v_grid)
-ax.plot_wireframe(x_grid, y_grid, z_grid, color='#222233', alpha=0.15, linewidth=0.5)
+# === Эфирная Мембрана (Сфера) ===
+# Купол и базовая оболочка пространства.
+u, v = np.mgrid[0:2*np.pi:30j, 0:np.pi:15j]
+x = np.cos(u)*np.sin(v)
+y = np.sin(u)*np.sin(v)
+z = np.cos(v)
+ax.plot_wireframe(x, y, z, color='#222233', alpha=0.1, linewidth=0.5)
 
-# Базовые полуоси (Грани бесконечности)
+# === 6 Граней Бесконечности (Полуоси) ===
+# У пространства 3 меры (X,Y,Z). Они пересекаются в Наблюдателе (0³).
+# Каждая ось двойственна (+/-). Итого 6 лучей, осязаемых телом как полюса системы.
 points = {
     '+X': np.array([1, 0, 0]), '-X': np.array([-1, 0, 0]),
     '+Y': np.array([0, 1, 0]), '-Y': np.array([0, -1, 0]),
     '+Z': np.array([0, 0, 1]), '-Z': np.array([0, 0, -1])
 }
 
-# 15 Связей 
-arcs =[
-    ('+X', '+Y', '#ff3333'), ('+X', '-Y', '#ff8833'), 
-    ('-X', '+Y', '#cc0000'), ('-X', '-Y', '#ff5500'),
-    
-    ('+Y', '+Z', '#33ff33'), ('+Y', '-Z', '#88ff33'), 
-    ('-Y', '+Z', '#00cc00'), ('-Y', '-Z', '#55ff00'),
-    
-    ('+Z', '+X', '#3333ff'), ('+Z', '-X', '#3388ff'), 
-    ('-Z', '+X', '#0000cc'), ('-Z', '-X', '#0055ff'),
-    
-    # Сквозные оси (Нуль-транзит)
-    ('+X', '-X', '#ff00ff'), # X-Ось (Пурпур)
-    ('+Y', '-Y', '#ffff00'), # Y-Ось (Желтый)
-    ('+Z', '-Z', '#00ffff')  # Z-Ось (Циан)
+# === 15 Направленных Связей (Архитектура 360°) ===
+# Полный граф K6. Шесть полюсов образуют между собой строго 15 уникальных дуг.
+# В каждом октанте 3 знака (+/-/0), что дает 24 уникальных знаковых состояния пространства (8*3).
+# Умножая 15 базовых путей-связей на 24 состояния системы, мы получаем 360 градусов.
+# 360 - это мера полного цикла, вшитая в логику пространства.
+arcs = [
+    # Красный спектр
+    ('+X','+Y','#ff3333'), ('+X','-Y','#ff8833'), ('-X','+Y','#cc0000'), ('-X','-Y','#ff5500'),
+    # Зеленый спектр
+    ('+Y','+Z','#33ff33'), ('+Y','-Z','#88ff33'), ('-Y','+Z','#00cc00'), ('-Y','-Z','#55ff00'),
+    # Синий спектр
+    ('+Z','+X','#3333ff'), ('+Z','-X','#3388ff'), ('-Z','+X','#0000cc'), ('-Z','-X','#0055ff'),
+    # Нуль-транзиты (Диагонали антиподов)
+    ('+X','-X','#ff00ff'), ('+Y','-Y','#ffff00'), ('+Z','-Z','#00ffff')
 ]
 
 t = np.linspace(0, 1, 100)
 
-for p1_name, p2_name, color in arcs:
-    p1 = points[p1_name]
-    p2 = points[p2_name]
-    
+# Отрисовка всех 15 связей
+for p1_n, p2_n, color in arcs:
+    p1, p2 = points[p1_n], points[p2_n]
     normal = None
-    if p1_name[1] == p2_name[1]: 
-        # Жесткая ортогональная фиксация дуги
-        if p1_name[1] == 'X': normal = np.array([0, 0, 1]) # Дуга над экватором
-        elif p1_name[1] == 'Y': normal = np.array([1, 0, 0])
-        elif p1_name[1] == 'Z': normal = np.array([1, 0, 0])
+    
+    # Жесткая фиксация ортогональности для антиподов
+    # Это гарантирует, что 90 градусов (проекция взаимной независимости векторов) 
+    # сохраняется и дуга ложится на экватор или меридиан.
+    if p1_n[1] == p2_n[1]: 
+        if p1_n[1] == 'X': normal = np.array([0, 0, 1])
+        elif p1_n[1] == 'Y': normal = np.array([1, 0, 0])
+        elif p1_n[1] == 'Z': normal = np.array([1, 0, 0])
         
     arc_pts = slerp(p1, p2, t, normal)
-    ax.plot(arc_pts[:,0], arc_pts[:,1], arc_pts[:,2], color=color, linewidth=2.5, alpha=0.9)
+    ax.plot(arc_pts[:,0], arc_pts[:,1], arc_pts[:,2], color=color, linewidth=2)
 
+# Расстановка узлов (Полюсов)
 for name, p in points.items():
-    ax.scatter(*p, color='white', s=120, zorder=5)
-    # Смещение текста от полюсов для читаемости
-    ax.text(p[0]*1.15, p[1]*1.15, p[2]*1.15, name, color='white', fontsize=14, weight='bold', ha='center', va='center')
+    ax.scatter(*p, color='white', s=80, zorder=5)
+    # Смещение меток от центра полюса, чтобы текст не сливался с точкой
+    ax.text(p[0]*1.15, p[1]*1.15, p[2]*1.15, name, color='white', fontsize=12, weight='bold', ha='center', va='center')
 
-ax.view_init(elev=20., azim=55) # Угол, чтобы прочитать всю топологию разом
-plt.subplots_adjust(left=0, right=1, bottom=0, top=1)
-print("Запуск графики: Структура из 6 граней и 15 связей (15x24=360)")
+# Задаем ракурс для детекта
+# С этого ракурса (elev=25, azim=45) 15 дуг выстраиваются в многомерную звезду,
+# демонстрируя структуру пространства вокруг точки 0³
+ax.view_init(elev=25., azim=45)
+plt.tight_layout()
+
+print("[SUCCESS] Рендеринг Каркаса: 6 полюсов -> 15 связей. Проекция 360° завершена.")
 plt.show()
